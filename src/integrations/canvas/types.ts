@@ -94,9 +94,9 @@ export interface CanvasRawSnapshot {
 
 export type CanvasStatus =
   | { state: 'demo' }
-  | { state: 'signed_out'; oauthHost: string | null }
+  | { state: 'signed_out' }
   | { state: 'server_unreachable'; message: string }
   | { state: 'not_configured'; missing: string[] }
   | { state: 'unauthorized'; message: string }
   | { state: 'error'; message: string }
-  | { state: 'connected'; userName: string; baseHost: string; method?: 'token' | 'oauth' | 'server' }
+  | { state: 'connected'; userName: string; baseHost: string; method?: 'token' | 'server' }

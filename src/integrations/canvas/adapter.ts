@@ -39,7 +39,6 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export interface AuthOptions {
-  oauth: { host: string } | null
   token: boolean
 }
 
@@ -58,11 +57,6 @@ export const canvasApi = {
   /** Connect with a personal access token. The token is sent once, to our own server. */
   loginWithToken: (baseUrl: string, token: string) =>
     call<Extract<CanvasStatus, { state: 'connected' }>>('/api/auth/token', { method: 'POST', body: JSON.stringify({ baseUrl, token }) }),
-
-  /** Full-page redirect into Canvas's own sign-in screen (OAuth). */
-  startOAuth: () => {
-    window.location.assign('/api/auth/oauth/start')
-  },
 
   logout: () => call<{ ok: true }>('/api/auth/logout', { method: 'POST', body: '{}' }),
 

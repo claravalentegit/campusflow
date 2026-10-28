@@ -1,28 +1,19 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
-import { AnimatePresence, motion } from 'motion/react'
-import { ArrowRight, CheckCircle2, ExternalLink, Eye, EyeOff, KeyRound, Loader2, LogIn, Plug, RefreshCw, ServerOff, ShieldCheck } from 'lucide-react'
-import { canvasApi, CanvasError, type AuthOptions } from '@/integrations/canvas/adapter'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { ArrowLeft, ArrowRight, CheckCircle2, ClipboardPaste, ExternalLink, Eye, EyeOff, Globe, KeyRound, Loader2, Plug, RefreshCw, Settings2, ShieldCheck } from 'lucide-react'
+import { canvasApi, CanvasError } from '@/integrations/canvas/adapter'
 import type { CanvasStatus } from '@/integrations/canvas/types'
 import { syncCanvas, useCanvasSync, type SyncResult } from '@/integrations/canvas/sync'
 import { useStore } from '@/store/appStore'
 import { cannons, sfx } from '@/game/fx'
 import { AnimatedNumber } from '@/components/game/GameUI'
+import { BrandMark } from '@/components/layout/Brand'
 import { Page, usePageTitle } from '@/components/Page'
 import { Button } from '@/components/ui/Button'
 import { confirm } from '@/components/ui/Dialog'
-import { Field, Input } from '@/components/ui/Field'
-import { Skeleton } from '@/components/ui/Skeleton'
+import { Input } from '@/components/ui/Field'
 import { cn } from '@/components/ui/cn'
-import { BrandMark } from '@/components/layout/Brand'
-
-type Phase = { kind: 'loading' } | { kind: 'no-server'; message: string } | { kind: 'form' } | { kind: 'connected'; status: Extract<CanvasStatus, { state: 'connected' }> } | { kind: 'importing'; userName: string } | { kind: 'done'; result: SyncResult; userName: string }
-
-const OAUTH_ERRORS: Record<string, string> = {
-  denied: 'Canvas sign-in was cancelled. Try again whenever you’re ready.',
-  state: 'That sign-in link expired or didn’t match. Start again.',
-  token: 'Canvas didn’t finish the sign-in. Try again, or use an access token.',
-}
 
 /** "https://canvas.school.edu/courses" → "canvas.school.edu" (display and link only; the server validates). */
 export function hostFrom(input: string): string | null {
@@ -36,309 +27,418 @@ export function hostFrom(input: string): string | null {
   }
 }
 
+/** The steps of the sign-in deck, in order. */
+const STEPS = ['welcome', 'address', 'settings', 'token', 'paste'] as const
+type Step = (typeof STEPS)[number]
+type Card = Step | 'importing' | 'done' | 'connected' | 'checking'
+
 export function Connect() {
   usePageTitle('Connect Canvas')
   const navigate = useNavigate()
-  const [params, setParams] = useSearchParams()
   const mode = useStore((s) => s.prefs.dataMode)
   const welcome = !useStore((s) => s.prefs.onboarded)
   const updatePrefs = useStore((s) => s.updatePrefs)
-  const skip = () => {
-    updatePrefs({ onboarded: true })
-    navigate('/')
-  }
-  const skipLabel = mode === 'demo' ? 'Try the demo instead' : 'Continue without Canvas'
-  const [phase, setPhase] = useState<Phase>({ kind: 'loading' })
-  const [options, setOptions] = useState<AuthOptions | null>(null)
+  const [card, setCard] = useState<Card>('checking')
+  const [dir, setDir] = useState<1 | -1>(1)
+  const [serverOk, setServerOk] = useState<boolean | null>(null)
+  const [status, setStatus] = useState<Extract<CanvasStatus, { state: 'connected' }> | null>(null)
   const [address, setAddress] = useState(() => useStore.getState().prefs.canvasHost ?? '')
   const [token, setToken] = useState('')
-  const [showToken, setShowToken] = useState(false)
-  const [error, setError] = useState<string | null>(OAUTH_ERRORS[params.get('error') ?? ''] ?? null)
+  const [error, setError] = useState<string | null>(null)
   const [shake, setShake] = useState(0)
   const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState<{ result: SyncResult; userName: string } | null>(null)
   const host = useMemo(() => hostFrom(address), [address])
-
-  const runImport = async (account: { userName: string; baseHost: string }) => {
-    setPhase({ kind: 'importing', userName: account.userName })
-    const started = Date.now()
-    const result = await syncCanvas({ silent: true, account })
-    await new Promise((r) => setTimeout(r, Math.max(0, 1400 - (Date.now() - started)))) // let the import animation play
-    if (!result) {
-      setError(useCanvasSync.getState().error ?? 'Import failed.')
-      setPhase({ kind: 'form' })
-      return
-    }
-    useStore.getState().updatePrefs({ onboarded: true })
-    setPhase({ kind: 'done', result, userName: account.userName })
-    sfx.quest()
-    setTimeout(cannons, 200)
-  }
+  const skipLabel = mode === 'demo' ? 'Try the demo instead' : 'Continue without Canvas'
 
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {
-        const opts = await canvasApi.options()
+        await canvasApi.options()
         if (cancelled) return
-        setOptions(opts)
-        const status = await canvasApi.status()
+        setServerOk(true)
+        const s = await canvasApi.status()
         if (cancelled) return
-        if (status.state === 'connected') {
-          if (params.get('connected') === '1') {
-            setParams({}, { replace: true })
-            await runImport({ userName: status.userName, baseHost: status.baseHost })
-          } else {
-            useStore.getState().updatePrefs({ onboarded: true })
-            setPhase({ kind: 'connected', status })
-          }
-        } else setPhase({ kind: 'form' })
+        if (s.state === 'connected') {
+          useStore.getState().updatePrefs({ onboarded: true })
+          setStatus(s)
+          setCard('connected')
+        } else setCard('welcome')
       } catch (e) {
-        if (!cancelled) setPhase(e instanceof CanvasError && e.status !== 0 ? { kind: 'form' } : { kind: 'no-server', message: (e as Error).message })
+        if (cancelled) return
+        setServerOk(e instanceof CanvasError && e.status !== 0)
+        setCard('welcome')
       }
     })()
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const go = (next: Card, d: 1 | -1 = 1) => {
+    setError(null)
+    setDir(d)
+    setCard(next)
+    if (d === 1) sfx.tap()
+  }
+  const index = STEPS.indexOf(card as Step)
+  const back = () => index > 0 && go(STEPS[index - 1], -1)
   const fail = (message: string) => {
     setError(message)
     setShake((n) => n + 1)
     sfx.undo()
   }
+  const skip = () => {
+    updatePrefs({ onboarded: true })
+    navigate('/')
+  }
 
-  const confirmReplaceDemo = async () =>
-    mode !== 'demo' ||
-    welcome || (await confirm({ title: 'Replace the demo with your real classes?', message: 'The sample classes and anything you did with them will be removed. Your real Canvas classes will be imported.', confirmLabel: 'Continue', tone: 'primary' }))
-
-  const connectWithToken = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
-    if (!host) return fail('Enter your school’s Canvas address, like canvas.yourschool.edu.')
-    if (token.trim().length < 20) return fail('Paste the whole access token from Canvas.')
-    if (!(await confirmReplaceDemo())) return
+  const connect = async () => {
+    if (token.trim().length < 20) return fail('That’s too short. Paste the whole token from Canvas.')
+    if (mode === 'demo' && !welcome) {
+      const ok = await confirm({ title: 'Replace the demo with your real classes?', message: 'The sample classes and anything you did with them will be removed.', confirmLabel: 'Continue', tone: 'primary' })
+      if (!ok) return
+    }
     setBusy(true)
+    setError(null)
     try {
-      const status = await canvasApi.loginWithToken(address, token)
+      const s = await canvasApi.loginWithToken(address, token)
       setToken('')
-      await runImport({ userName: status.userName, baseHost: status.baseHost })
-    } catch (err) {
-      fail((err as Error).message)
+      go('importing')
+      const started = Date.now()
+      const r = await syncCanvas({ silent: true, account: { userName: s.userName, baseHost: s.baseHost } })
+      await new Promise((res) => setTimeout(res, Math.max(0, 1400 - (Date.now() - started))))
+      if (!r) {
+        go('paste', -1)
+        fail(useCanvasSync.getState().error ?? 'Import failed. Try again.')
+        return
+      }
+      updatePrefs({ onboarded: true })
+      setResult({ result: r, userName: s.userName })
+      go('done')
+      sfx.quest()
+      setTimeout(cannons, 250)
+    } catch (e) {
+      const err = e as CanvasError
+      fail(err.status === 0 ? 'Sign-in doesn’t work in this preview. Install CampusFlow on your computer to finish connecting.' : err.message)
     } finally {
       setBusy(false)
     }
   }
 
-  const signInWithCanvas = async () => {
-    if (!(await confirmReplaceDemo())) return
-    canvasApi.startOAuth()
-  }
+  const stepNumber = index >= 1 ? index : null
 
   return (
-    <Page className="max-w-2xl">
-      {welcome && (
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-8 flex flex-col items-center gap-3 pt-6 text-center sm:pt-10">
-          <motion.span initial={{ scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 240, damping: 12 }}>
-            <BrandMark className="size-20" />
-          </motion.span>
-          <h1 className="text-4xl font-black tracking-tight">Welcome to CampusFlow</h1>
-          <p className="max-w-md text-lg font-bold text-fg-2">Sign in with your Canvas account to load your classes and start earning XP.</p>
-        </motion.div>
-      )}
-      <div className={cn('mb-6 flex items-center gap-4', welcome && 'hidden')}>
-        <motion.span initial={{ scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 260, damping: 13 }} className="btn-3d grid size-16 shrink-0 place-items-center rounded-[20px] bg-accent text-white [--press:var(--accent-press)]">
-          <Plug className="size-8" strokeWidth={2.5} aria-hidden />
-        </motion.span>
-        <div>
-          <h1 className="text-3xl font-black tracking-tight">Connect Canvas</h1>
-          <p className="font-bold text-fg-2">Bring in all your classes and assignments automatically.</p>
-        </div>
+    <Page className="flex max-w-lg flex-col items-center">
+      <div className="mb-5 flex w-full items-center justify-between gap-3 pt-2 sm:pt-6">
+        <span className="flex items-center gap-2 text-lg font-black text-accent-text">
+          <BrandMark className="size-8" /> CampusFlow
+        </span>
+        {serverOk === false && <span className="rounded-full bg-warn-soft px-3 py-1 text-xs font-black text-warn">Preview: the last card can’t connect here</span>}
       </div>
 
-      <AnimatePresence mode="wait">
-        {phase.kind === 'loading' && (
-          <motion.div key="loading" exit={{ opacity: 0 }} className="card-3d flex flex-col gap-3 p-6" aria-label="Checking connection">
-            <Skeleton className="h-5 w-48" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-2/3" />
-          </motion.div>
+      {/* Progress dots */}
+      <div className="mb-5 flex h-2.5 items-center gap-1.5" aria-hidden>
+        {STEPS.map((s, i) => (
+          <motion.span
+            key={s}
+            className={cn('h-2.5 rounded-full', i <= index || ['importing', 'done', 'connected'].includes(card) ? 'bg-accent' : 'bg-surface-3')}
+            animate={{ width: s === card ? 28 : 10 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+          />
+        ))}
+      </div>
+
+      <div className="relative w-full">
+        {/* The deck behind the current card */}
+        {index >= 0 && index < STEPS.length - 1 && (
+          <>
+            <span aria-hidden className="absolute inset-x-6 top-5 bottom-[-18px] rotate-[2.5deg] rounded-[28px] border-2 border-line bg-surface opacity-60" />
+            <span aria-hidden className="absolute inset-x-3 top-2.5 bottom-[-9px] rotate-[-1.5deg] rounded-[28px] border-2 border-line bg-surface opacity-90" />
+          </>
         )}
-
-        {phase.kind === 'no-server' && (
-          <motion.section key="no-server" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="card-3d p-6" data-testid="connect-no-server">
-            <p className="flex items-center gap-2 text-lg font-black">
-              <ServerOff className="size-5 text-fg-3" aria-hidden /> Canvas sign-in isn’t available in this preview
-            </p>
-            <p className="mt-2 font-semibold text-fg-2">This is a preview version. Signing in to Canvas works once CampusFlow is installed on your computer or on a website.</p>
-            <p className="mt-3 font-semibold text-fg-2">You can still try everything with sample classes.</p>
-            {welcome ? (
-              <Button variant="primary" size="lg" className="mt-4" onClick={skip}>
-                {skipLabel}
-              </Button>
-            ) : (
-              <Button variant="secondary" className="mt-4" onClick={() => navigate('/')}>
-                Back to Today
-              </Button>
-            )}
-          </motion.section>
-        )}
-
-        {phase.kind === 'connected' && <Connected key="connected" status={phase.status} onImported={(r) => setPhase({ kind: 'done', result: r, userName: phase.status.userName })} />}
-
-        {phase.kind === 'importing' && (
-          <motion.section key="importing" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="card-3d flex flex-col items-center gap-4 p-8 text-center" aria-live="polite">
-            <motion.span animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1.2, ease: 'linear' }}>
-              <RefreshCw className="size-10 text-accent" aria-hidden />
-            </motion.span>
-            <p className="text-xl font-black">Importing your classes…</p>
-            <p className="font-semibold text-fg-2">Signed in as {phase.userName}</p>
-            <div className="w-full max-w-sm">
-              <div className="h-3 overflow-hidden rounded-full bg-accent-soft">
-                <motion.div className="bar-stripes h-full rounded-full bg-accent" initial={{ width: '5%' }} animate={{ width: '92%' }} transition={{ duration: 2.5, ease: 'easeOut' }} />
+        <AnimatePresence mode="popLayout" initial={false} custom={dir}>
+          <FlashCard key={card} dir={dir} shake={card === 'paste' || card === 'address' ? shake : 0}>
+            {card === 'checking' && (
+              <div className="flex flex-1 items-center justify-center" aria-label="Loading">
+                <Loader2 className="size-8 animate-spin text-fg-3" aria-hidden />
               </div>
-            </div>
-          </motion.section>
-        )}
-
-        {phase.kind === 'done' && (
-          <motion.section key="done" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 16 }} className="card-3d flex flex-col items-center gap-4 p-8 text-center" data-testid="connect-done">
-            <motion.span initial={{ scale: 0, rotate: -40 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', delay: 0.15, stiffness: 300, damping: 10 }}>
-              <CheckCircle2 className="size-16 fill-success-soft text-success-bright" aria-hidden />
-            </motion.span>
-            <h2 className="text-2xl font-black">You’re connected, {phase.userName.split(' ')[0]}!</h2>
-            <div className="grid w-full max-w-sm grid-cols-2 gap-3">
-              <div className="card-3d p-3">
-                <p className="tabular text-3xl font-black text-accent-text">
-                  <AnimatedNumber value={phase.result.courses} />
-                </p>
-                <p className="text-xs font-extrabold text-fg-3">classes</p>
-              </div>
-              <div className="card-3d p-3">
-                <p className="tabular text-3xl font-black text-gold-text">
-                  <AnimatedNumber value={phase.result.assignments} />
-                </p>
-                <p className="text-xs font-extrabold text-fg-3">assignments</p>
-              </div>
-            </div>
-            <p className="max-w-sm text-sm font-semibold text-fg-2">From now on CampusFlow syncs by itself. Anything you submit on Canvas earns XP here too.</p>
-            <Button variant="primary" size="lg" iconRight={ArrowRight} onClick={() => navigate('/')}>
-              Let’s go
-            </Button>
-          </motion.section>
-        )}
-
-        {phase.kind === 'form' && (
-          <motion.div key="form" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex flex-col gap-5">
-            <section className="card-3d p-5 sm:p-6">
-              <Field label="Your school’s Canvas address" hint="Copy it from your browser when you’re on Canvas, like canvas.yourschool.edu or yourschool.instructure.com.">
-                {(p) => <Input {...p} value={address} onChange={(e) => setAddress(e.target.value)} placeholder="canvas.yourschool.edu" autoComplete="url" inputMode="url" spellCheck={false} className="h-12 rounded-xl border-2 text-base font-bold" />}
-              </Field>
-            </section>
-
-            {options?.oauth && (
-              <section className="card-3d p-5 sm:p-6">
-                <h2 className="text-lg font-black">Sign in with Canvas</h2>
-                <p className="mt-1 text-sm font-semibold text-fg-2">You’ll go to {options.oauth.host}, sign in there, and come right back. CampusFlow never sees your password.</p>
-                <Button variant="primary" size="lg" icon={LogIn} className="mt-4 w-full" onClick={() => void signInWithCanvas()}>
-                  Sign in with Canvas
-                </Button>
-              </section>
             )}
 
-            <motion.form key={shake} animate={shake ? { x: [0, -10, 10, -6, 6, 0] } : {}} transition={{ duration: 0.4 }} onSubmit={(e) => void connectWithToken(e)} noValidate className="card-3d p-5 sm:p-6" aria-labelledby="token-title">
-              <h2 id="token-title" className="flex items-center gap-2 text-lg font-black">
-                <KeyRound className="size-5 text-gold" aria-hidden /> {options?.oauth ? 'Or connect with an access token' : 'Connect with an access token'}
-              </h2>
-              <p className="mt-1 text-sm font-semibold text-fg-2">Takes about 30 seconds. Most schools allow it.</p>
-              <ol className="mt-4 flex flex-col gap-3">
-                {[
-                  <>
-                    Open your Canvas settings{' '}
-                    {host ? (
-                      <a href={`https://${host}/profile/settings`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-black text-accent-text hover:underline">
-                        {host}/profile/settings <ExternalLink className="size-3.5" aria-hidden />
-                      </a>
-                    ) : (
-                      <span className="text-fg-3">(enter your address above for a direct link)</span>
-                    )}
-                  </>,
-                  <>
-                    Scroll to <b className="font-black">Approved Integrations</b> and click <b className="font-black">+ New Access Token</b>.
-                  </>,
-                  <>
-                    Type <b className="font-black">CampusFlow</b> as the purpose, pick an expiry date if you like, and click <b className="font-black">Generate Token</b>.
-                  </>,
-                  <>Copy the token and paste it below.</>,
-                ].map((step, i) => (
-                  <li key={i} className="flex gap-3 text-sm font-semibold text-fg-2">
-                    <span className="tabular grid size-7 shrink-0 place-items-center rounded-lg bg-accent-soft text-xs font-black text-accent-text">{i + 1}</span>
-                    <span className="pt-0.5">{step}</span>
-                  </li>
-                ))}
-              </ol>
-              <Field label="Access token" className="mt-5">
-                {(p) => (
-                  <div className="relative">
-                    <Input {...p} type={showToken ? 'text' : 'password'} value={token} onChange={(e) => setToken(e.target.value)} autoComplete="off" spellCheck={false} placeholder="Paste your token" className="h-12 rounded-xl border-2 pr-12 font-mono text-sm" />
-                    <button type="button" onClick={() => setShowToken((s) => !s)} aria-label={showToken ? 'Hide token' : 'Show token'} className="absolute top-1/2 right-3 -translate-y-1/2 rounded p-1 text-fg-3 hover:text-fg">
-                      {showToken ? <EyeOff className="size-4.5" aria-hidden /> : <Eye className="size-4.5" aria-hidden />}
+            {card === 'welcome' && (
+              <CardBody
+                icon={<Plug className="size-9" strokeWidth={2.4} aria-hidden />}
+                tone="accent"
+                title={welcome ? 'Connect your Canvas' : 'Connect Canvas'}
+                text="Bring in all your classes and assignments. It takes about a minute: you’ll make a key in Canvas and paste it here."
+                action={
+                  <Button variant="primary" size="lg" className="w-full" iconRight={ArrowRight} onClick={() => go('address')} data-autofocus>
+                    Let’s start
+                  </Button>
+                }
+                footer={
+                  welcome ? (
+                    <button type="button" onClick={skip} className="text-sm font-black text-accent-text hover:underline">
+                      Just looking? {skipLabel} →
                     </button>
-                  </div>
-                )}
-              </Field>
-              <AnimatePresence>
-                {error && (
-                  <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} role="alert" className="mt-3 rounded-xl bg-danger-soft px-3 py-2 text-sm font-bold text-danger">
-                    {error}
-                  </motion.p>
-                )}
-              </AnimatePresence>
-              <Button type="submit" variant="primary" size="lg" className={cn('mt-4 w-full', busy && '[&_svg]:animate-spin')} icon={busy ? Loader2 : Plug} disabled={busy}>
-                {busy ? 'Connecting…' : 'Connect'}
-              </Button>
-              {mode === 'demo' && !welcome && <p className="mt-2 text-center text-xs font-bold text-fg-3">Your demo data will be replaced with your real classes.</p>}
-            </motion.form>
-
-            {welcome && (
-              <button type="button" onClick={skip} className="self-center rounded-xl px-4 py-2 text-sm font-black text-accent-text hover:bg-accent-soft">
-                Just looking? {skipLabel} →
-              </button>
+                  ) : (
+                    <button type="button" onClick={() => navigate(-1)} className="text-sm font-black text-fg-3 hover:text-fg">
+                      Not now
+                    </button>
+                  )
+                }
+              />
             )}
-            <p className="flex items-start gap-2 px-1 text-xs font-semibold text-fg-3">
-              <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden />
-              <span>
-                Read-only: CampusFlow never submits work, changes grades or messages anyone. Your token goes once to the CampusFlow server, which stores it encrypted; this page never keeps it. You can revoke it any time in Canvas settings. Never type your Canvas password into anything except Canvas itself.
-              </span>
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
+            {card === 'address' && (
+              <CardForm
+                onSubmit={() => (host ? go('settings') : fail('Type your school’s Canvas address, like canvas.yourschool.edu.'))}
+                step={stepNumber}
+                icon={<Globe className="size-9" strokeWidth={2.4} aria-hidden />}
+                tone="blue"
+                title="What’s your school’s Canvas address?"
+                text="Look at the address bar when you’re on Canvas."
+                error={error}
+                onBack={back}
+                submitLabel="Next"
+              >
+                <Input aria-label="Your school’s Canvas address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="canvas.yourschool.edu" autoComplete="url" inputMode="url" spellCheck={false} autoFocus className="h-14 rounded-2xl border-2 text-center text-lg font-extrabold" />
+                <p className="text-center text-xs font-bold text-fg-3">Often yourschool.instructure.com</p>
+              </CardForm>
+            )}
+
+            {card === 'settings' && (
+              <CardForm
+                onSubmit={() => go('token')}
+                step={stepNumber}
+                icon={<Settings2 className="size-9" strokeWidth={2.4} aria-hidden />}
+                tone="gold"
+                title="Open your Canvas settings"
+                text="This opens in a new tab. Sign in there if Canvas asks, then come back here."
+                onBack={back}
+                submitLabel="I’m there"
+              >
+                <a
+                  href={`https://${host}/profile/settings`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => sfx.tap()}
+                  className="btn-3d flex items-center justify-center gap-2 rounded-2xl border-2 border-line bg-surface px-4 py-3.5 text-base font-black text-accent-text [--press:var(--line)]"
+                >
+                  Open Canvas settings <ExternalLink className="size-4" aria-hidden />
+                </a>
+                <p className="truncate text-center text-xs font-bold text-fg-3">{host}/profile/settings</p>
+              </CardForm>
+            )}
+
+            {card === 'token' && (
+              <CardForm onSubmit={() => go('paste')} step={stepNumber} icon={<KeyRound className="size-9" strokeWidth={2.4} aria-hidden />} tone="fire" title="Make a new access token" onBack={back} submitLabel="I copied it">
+                <ol className="flex flex-col gap-2.5">
+                  {[
+                    <>
+                      Scroll to <b className="font-black text-fg">Approved Integrations</b>
+                    </>,
+                    <>
+                      Click <b className="font-black text-fg">+ New Access Token</b>
+                    </>,
+                    <>
+                      Purpose: <b className="font-black text-fg">CampusFlow</b>, then <b className="font-black text-fg">Generate Token</b>
+                    </>,
+                    <>
+                      <b className="font-black text-fg">Copy</b> the long code it shows you
+                    </>,
+                  ].map((line, i) => (
+                    <motion.li key={i} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 + i * 0.08 }} className="flex items-center gap-3 rounded-2xl bg-surface-2 px-3.5 py-2 text-sm font-bold text-fg-2">
+                      <span className="tabular grid size-7 shrink-0 place-items-center rounded-lg bg-surface text-xs font-black text-fire shadow-sm">{i + 1}</span>
+                      <span>{line}</span>
+                    </motion.li>
+                  ))}
+                </ol>
+                <p className="text-center text-xs font-bold text-fg-3">Canvas only shows the token once, so copy it before closing.</p>
+              </CardForm>
+            )}
+
+            {card === 'paste' && (
+              <CardForm onSubmit={() => void connect()} step={stepNumber} icon={<ClipboardPaste className="size-9" strokeWidth={2.4} aria-hidden />} tone="green" title="Paste your token" error={error} onBack={back} submitLabel={busy ? 'Connecting…' : 'Connect'} submitIcon={busy ? Loader2 : Plug} busy={busy}>
+                <TokenInput value={token} onChange={setToken} />
+                <p className="flex items-start gap-1.5 text-xs font-semibold text-fg-3">
+                  <ShieldCheck className="mt-px size-3.5 shrink-0" aria-hidden />
+                  Sent once to the CampusFlow server and stored encrypted. CampusFlow only reads from Canvas and never asks for your password.
+                </p>
+                {error && serverOk === false && welcome && (
+                  <Button variant="secondary" className="w-full" onClick={skip}>
+                    {skipLabel}
+                  </Button>
+                )}
+              </CardForm>
+            )}
+
+            {card === 'importing' && (
+              <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center" aria-live="polite">
+                <motion.span animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1.2, ease: 'linear' }}>
+                  <RefreshCw className="size-12 text-accent" aria-hidden />
+                </motion.span>
+                <p className="text-2xl font-black">Importing your classes…</p>
+                <div className="h-3 w-full max-w-xs overflow-hidden rounded-full bg-accent-soft">
+                  <motion.div className="bar-stripes h-full rounded-full bg-accent" initial={{ width: '5%' }} animate={{ width: '92%' }} transition={{ duration: 2.5, ease: 'easeOut' }} />
+                </div>
+              </div>
+            )}
+
+            {card === 'done' && result && (
+              <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center" data-testid="connect-done">
+                <motion.span initial={{ scale: 0, rotate: -40 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', delay: 0.1, stiffness: 300, damping: 10 }}>
+                  <CheckCircle2 className="size-16 fill-success-soft text-success-bright" aria-hidden />
+                </motion.span>
+                <h1 className="text-2xl font-black">You’re connected, {result.userName.split(' ')[0]}!</h1>
+                <div className="grid w-full max-w-xs grid-cols-2 gap-3">
+                  <div className="card-3d p-3">
+                    <p className="tabular text-3xl font-black text-accent-text">
+                      <AnimatedNumber value={result.result.courses} />
+                    </p>
+                    <p className="text-xs font-extrabold text-fg-3">classes</p>
+                  </div>
+                  <div className="card-3d p-3">
+                    <p className="tabular text-3xl font-black text-gold-text">
+                      <AnimatedNumber value={result.result.assignments} />
+                    </p>
+                    <p className="text-xs font-extrabold text-fg-3">assignments</p>
+                  </div>
+                </div>
+                <p className="text-sm font-semibold text-fg-2">CampusFlow keeps them up to date by itself. Work you submit on Canvas earns XP here too.</p>
+                <Button variant="primary" size="lg" className="w-full" iconRight={ArrowRight} onClick={() => navigate('/')} autoFocus>
+                  Let’s go
+                </Button>
+              </div>
+            )}
+
+            {card === 'connected' && status && <ConnectedCard status={status} />}
+          </FlashCard>
+        </AnimatePresence>
+      </div>
     </Page>
   )
 }
 
-function Connected({ status, onImported }: { status: Extract<CanvasStatus, { state: 'connected' }>; onImported: (r: SyncResult) => void }) {
+/** One card in the deck: flies away when you move on, the next rises from the stack. */
+function FlashCard({ children, dir, shake }: { children: ReactNode; dir: 1 | -1; shake: number }) {
+  const reduce = useReducedMotion()
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (shake && ref.current && !reduce) ref.current.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-12px)' }, { transform: 'translateX(12px)' }, { transform: 'translateX(-6px)' }, { transform: 'translateX(0)' }], { duration: 380 })
+  }, [shake, reduce])
+  const variants = {
+    enter: (d: 1 | -1) => (reduce ? { opacity: 0 } : d === 1 ? { opacity: 0, scale: 0.92, y: 22, rotate: 0 } : { opacity: 0, x: -320, rotate: -14 }),
+    center: { opacity: 1, scale: 1, x: 0, y: 0, rotate: 0 },
+    exit: (d: 1 | -1) => (reduce ? { opacity: 0 } : d === 1 ? { opacity: 0, x: -360, rotate: -14, transition: { duration: 0.35 } } : { opacity: 0, scale: 0.92, y: 22, transition: { duration: 0.25 } }),
+  }
+  return (
+    <motion.div
+      custom={dir}
+      variants={variants}
+      initial="enter"
+      animate="center"
+      exit="exit"
+      transition={{ type: 'spring', stiffness: 280, damping: 26 }}
+      className="relative w-full"
+    >
+      <div ref={ref} className="card-3d flex min-h-[440px] flex-col rounded-[28px] p-6 shadow-md sm:p-7">
+        {children}
+      </div>
+    </motion.div>
+  )
+}
+
+const TONES = {
+  accent: 'bg-accent [--press:var(--accent-press)]',
+  blue: 'bg-[#0ea5e9] [--press:#0369a1]',
+  gold: 'bg-gold [--press:var(--gold-press)]',
+  fire: 'bg-fire [--press:#d9480f]',
+  green: 'bg-success-bright [--press:var(--success-press)]',
+}
+
+function CardIcon({ icon, tone }: { icon: ReactNode; tone: keyof typeof TONES }) {
+  return (
+    <motion.span initial={{ scale: 0.4, rotate: -20 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 320, damping: 12, delay: 0.08 }} className={cn('btn-3d grid size-18 place-items-center self-center rounded-[22px] text-white', TONES[tone])}>
+      {icon}
+    </motion.span>
+  )
+}
+
+function CardBody({ icon, tone, title, text, action, footer }: { icon: ReactNode; tone: keyof typeof TONES; title: string; text: string; action: ReactNode; footer?: ReactNode }) {
+  return (
+    <div className="flex flex-1 flex-col items-center gap-4 text-center">
+      <div className="flex flex-1 flex-col items-center justify-center gap-4">
+        <CardIcon icon={icon} tone={tone} />
+        <h1 className="text-[26px] leading-tight font-black">{title}</h1>
+        <p className="font-semibold text-fg-2">{text}</p>
+      </div>
+      {action}
+      {footer}
+    </div>
+  )
+}
+
+function CardForm({ onSubmit, step, icon, tone, title, text, error, onBack, submitLabel, submitIcon, busy, children }: { onSubmit: () => void; step: number | null; icon: ReactNode; tone: keyof typeof TONES; title: string; text?: string; error?: string | null; onBack: () => void; submitLabel: string; submitIcon?: typeof Plug; busy?: boolean; children: ReactNode }) {
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        if (!busy) onSubmit()
+      }}
+      noValidate
+      className="flex flex-1 flex-col gap-4"
+    >
+      <div className="flex items-center justify-between">
+        <button type="button" onClick={onBack} className="inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-sm font-black text-fg-3 hover:text-fg" aria-label="Previous card">
+          <ArrowLeft className="size-4" aria-hidden /> Back
+        </button>
+        {step && <span className="tabular text-xs font-black tracking-wider text-fg-3 uppercase">Step {step} of 4</span>}
+      </div>
+      <CardIcon icon={icon} tone={tone} />
+      <div className="text-center">
+        <h1 className="text-2xl leading-tight font-black">{title}</h1>
+        {text && <p className="mt-1.5 text-sm font-semibold text-fg-2">{text}</p>}
+      </div>
+      <div className="flex flex-col gap-2.5">{children}</div>
+      <AnimatePresence>
+        {error && (
+          <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} role="alert" className="rounded-xl bg-danger-soft px-3 py-2 text-center text-sm font-bold text-danger">
+            {error}
+          </motion.p>
+        )}
+      </AnimatePresence>
+      <Button type="submit" variant="primary" size="lg" className={cn('mt-auto w-full', busy && '[&_svg]:animate-spin')} iconRight={busy ? undefined : ArrowRight} icon={busy ? submitIcon : undefined} disabled={busy}>
+        {submitLabel}
+      </Button>
+    </form>
+  )
+}
+
+function TokenInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [show, setShow] = useState(false)
+  return (
+    <div className="relative">
+      <Input type={show ? 'text' : 'password'} aria-label="Access token" value={value} onChange={(e) => onChange(e.target.value)} autoComplete="off" spellCheck={false} autoFocus placeholder="Paste it here" className="h-14 rounded-2xl border-2 pr-12 text-center font-mono text-sm" />
+      <button type="button" onClick={() => setShow((s) => !s)} aria-label={show ? 'Hide token' : 'Show token'} className="absolute top-1/2 right-3 -translate-y-1/2 rounded p-1 text-fg-3 hover:text-fg">
+        {show ? <EyeOff className="size-4.5" aria-hidden /> : <Eye className="size-4.5" aria-hidden />}
+      </button>
+    </div>
+  )
+}
+
+function ConnectedCard({ status }: { status: Extract<CanvasStatus, { state: 'connected' }> }) {
   const navigate = useNavigate()
   const syncing = useCanvasSync((s) => s.syncing)
   const disconnect = useDisconnect()
   return (
-    <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="card-3d p-6" data-testid="connect-connected">
-      <p className="flex items-center gap-2 text-lg font-black">
-        <CheckCircle2 className="size-6 text-success-bright" aria-hidden /> Connected as {status.userName}
-      </p>
-      <p className="mt-1 font-semibold text-fg-2">{status.baseHost} · syncs automatically while CampusFlow is open</p>
-      <div className="mt-5 flex flex-wrap gap-2">
-        <Button
-          variant="primary"
-          icon={RefreshCw}
-          disabled={syncing}
-          className={syncing ? '[&_svg]:animate-spin' : ''}
-          onClick={async () => {
-            const r = await syncCanvas({ account: { userName: status.userName, baseHost: status.baseHost } })
-            if (r) onImported(r)
-          }}
-        >
+    <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center" data-testid="connect-connected">
+      <CardIcon icon={<CheckCircle2 className="size-9" strokeWidth={2.4} aria-hidden />} tone="green" />
+      <h1 className="text-2xl font-black">Connected as {status.userName}</h1>
+      <p className="font-semibold text-fg-2">{status.baseHost} · syncs automatically while CampusFlow is open</p>
+      <div className="flex w-full flex-col gap-2">
+        <Button variant="primary" size="lg" icon={RefreshCw} disabled={syncing} className={syncing ? '[&_svg]:animate-spin' : ''} onClick={() => void syncCanvas({ account: { userName: status.userName, baseHost: status.baseHost } })}>
           {syncing ? 'Syncing…' : 'Sync now'}
         </Button>
         <Button variant="secondary" onClick={() => navigate('/')}>
@@ -348,15 +448,15 @@ function Connected({ status, onImported }: { status: Extract<CanvasStatus, { sta
           Disconnect
         </Button>
       </div>
-    </motion.section>
+    </div>
   )
 }
 
-/** Sign out of Canvas on the server, optionally removing the imported records. */
+/** Sign out of Canvas on the server. Imported records and XP stay unless removed in Settings. */
 export function useDisconnect() {
   const disconnectCanvas = useStore((s) => s.disconnectCanvas)
   return async () => {
-    const ok = await confirm({ title: 'Disconnect Canvas?', message: 'CampusFlow will sign out of Canvas and stop syncing. Your classes, assignments and XP stay here unless you delete them in Settings. If you used an access token, you can also delete it in Canvas settings.', confirmLabel: 'Disconnect' })
+    const ok = await confirm({ title: 'Disconnect Canvas?', message: 'CampusFlow will sign out of Canvas and stop syncing. Your classes, assignments and XP stay here unless you delete them in Settings. You can also delete the token in your Canvas settings.', confirmLabel: 'Disconnect' })
     if (!ok) return false
     try {
       await canvasApi.logout()

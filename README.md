@@ -132,10 +132,7 @@ demo data or start an empty workspace. No secrets are ever stored on the client.
 
 ## Connecting Canvas
 
-Students connect from the app: **Connect Canvas** (on Today, in the profile menu, or Settings). Two ways, neither ever asks for a Canvas password:
-
-1. **Access token** (works out of the box). The page walks the student through Canvas → Account → Settings → **+ New Access Token**, then they paste it. Some schools disable personal tokens; then use option 2.
-2. **Sign in with Canvas** (OAuth). The student is sent to their school's Canvas login and back. Requires a Developer Key from the school's Canvas admin; set `CANVAS_OAUTH_BASE_URL`, `CANVAS_CLIENT_ID`, `CANVAS_CLIENT_SECRET` and `PUBLIC_URL` (see `.env.example`). Expired OAuth tokens are refreshed automatically; signing out revokes the token on Canvas.
+Students connect from the app with a **personal access token**, never a password. CampusFlow opens on a short deck of sign-in cards: school address → open Canvas settings (direct link) → make a token (**Account → Settings → + New Access Token**) → paste it. Some schools disable personal tokens; in that case CampusFlow can still be used with manually added work.
 
 Once connected, CampusFlow syncs on open, every 30 minutes, and when you return to the tab, plus a **Sync** button on Today. Classes, assignments (with due dates and your Canvas submission state), modules, announcements, calendar events and grades come in. Anything submitted on Canvas *after connecting* earns XP on the next sync. Your own fields (colors, priority, estimates, stages, notes, XP) are never overwritten.
 
@@ -143,12 +140,12 @@ Once connected, CampusFlow syncs on open, every 30 minutes, and when you return 
 
 **Security**
 - The browser only gets a random session id in an `HttpOnly`, `SameSite=Lax` cookie (`Secure` over https). Tokens are stored server-side, encrypted with AES-256-GCM (`.data/`, keyed by `SESSION_SECRET` or a generated key file with 0600 permissions). Session ids are stored hashed.
-- State-changing requests require JSON plus a custom header, which cross-site forms can't send (CSRF protection). OAuth uses a `state` cookie to block forged callbacks.
+- State-changing requests require JSON plus a custom header, which cross-site forms can't send (CSRF protection).
 - The school address a student types is checked: https only, and hosts that resolve to private or local networks are refused (prevents the server being used to reach internal machines). `CANVAS_ALLOWED_HOSTS` can restrict it further.
 - Sign-in attempts are rate limited. Tokens are never logged or put in URLs.
 - Pagination links are only followed on the same Canvas host.
 
-**Testing without a school account.** `node e2e/mock-canvas.mjs` runs a fake Canvas on port 8898 (token: `mock-canvas-token-0123456789`, plus OAuth screens). Start the server with `CANVAS_ALLOW_INSECURE=1` to allow its http address. The end-to-end suite uses it for token sign-in, OAuth sign-in and cancel, sync, XP for new submissions, and disconnect.
+**Testing without a school account.** `node e2e/mock-canvas.mjs` runs a fake Canvas on port 8898 (token: `mock-canvas-token-0123456789`). Start the server with `CANVAS_ALLOW_INSECURE=1` to allow its http address. The end-to-end suite uses it for token sign-in, wrong tokens, sync, XP for new submissions, and disconnect.
 
 > Not yet verified against a live school Canvas instance from this environment; the client follows the official REST API and is tested against Canvas-shaped responses.
 

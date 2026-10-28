@@ -40,14 +40,10 @@ const server = spawn(process.execPath, ['server/index.ts', '--serve-dist'], {
   env: {
     ...process.env,
     PORT: String(PORT),
-    PUBLIC_URL: BASE,
     DATA_DIR: mkdtempSync(join(tmpdir(), 'cf-e2e-')),
     CANVAS_BASE_URL: '',
     CANVAS_ACCESS_TOKEN: '',
     CANVAS_ALLOW_INSECURE: '1',
-    CANVAS_OAUTH_BASE_URL: MOCK,
-    CANVAS_CLIENT_ID: 'mock-client',
-    CANVAS_CLIENT_SECRET: 'mock-secret',
   },
   stdio: 'ignore',
 })
@@ -95,6 +91,19 @@ const isoDay = (offset) => {
 const dialog = (page) => page.locator('dialog[open]')
 
 console.log('CampusFlow e2e')
+
+/** Walk the sign-in flashcards: welcome → address → settings → token → paste. */
+async function connectThroughCards(page, address, token) {
+  await page.getByRole('button', { name: 'Let’s start' }).click()
+  await page.getByLabel('Your school’s Canvas address').fill(address)
+  await page.getByRole('button', { name: 'Next' }).click()
+  await page.getByRole('link', { name: /Open Canvas settings/ }).waitFor()
+  await page.getByRole('button', { name: 'I’m there' }).click()
+  await page.getByText('Approved Integrations').waitFor()
+  await page.getByRole('button', { name: 'I copied it' }).click()
+  await page.getByLabel('Access token', { exact: true }).fill(token)
+  await page.getByRole('button', { name: 'Connect' }).click()
+}
 
 const xp = async (page) => Number((await page.locator('#xp-target').innerText()).replace(/[^\d]/g, ''))
 const ready = (page) => page.getByTestId('day-summary').waitFor()
@@ -281,20 +290,22 @@ await test('14. Demo mode is never presented as a Canvas connection', async (pag
   assert(!(await status.getByText('Connected', { exact: true }).count()), 'claims a connection')
 })
 
-await test('Canvas: a wrong token is rejected with a clear message', async (page) => {
+await test('Canvas: the cards check the address and reject a wrong token', async (page) => {
   await page.goto(`${BASE}/connect`)
-  await page.getByLabel('Your school’s Canvas address').fill(MOCK)
-  await page.getByLabel('Access token', { exact: true }).fill('definitely-not-a-real-token-123')
-  await page.getByRole('button', { name: 'Connect', exact: true }).click()
+  await page.getByRole('button', { name: 'Let’s start' }).click()
+  await page.getByRole('button', { name: 'Next' }).click()
+  await page.getByRole('alert').getByText('Type your school’s Canvas address').waitFor()
+  await page.getByRole('button', { name: 'Previous card' }).click()
+  await page.getByRole('button', { name: 'Let’s start' }).waitFor()
+  await connectThroughCards(page, MOCK, 'definitely-not-a-real-token-123')
   await page.getByRole('alert').getByText('Canvas didn’t accept that token').waitFor()
 }, undefined, { allowNetworkErrors: true, fresh: true }) // the browser logs the server's intended 401
 
 await test('Canvas: connect with an access token, import classes, and sync on Today', async (page) => {
   await page.goto(`${BASE}/`)
-  await page.getByRole('heading', { name: 'Welcome to CampusFlow' }).waitFor()
-  await page.getByLabel('Your school’s Canvas address').fill(MOCK)
-  await page.getByLabel('Access token', { exact: true }).fill(MOCK_TOKEN)
-  await page.getByRole('button', { name: 'Connect', exact: true }).click()
+  await page.getByRole('heading', { name: 'Connect your Canvas' }).waitFor()
+  assert(!(await page.getByRole('button', { name: /Sign in with Canvas/ }).count()), 'OAuth option still shown')
+  await connectThroughCards(page, MOCK, MOCK_TOKEN)
   const done = page.getByTestId('connect-done')
   await done.getByText('You’re connected, Jordan!').waitFor()
   await page.waitForTimeout(900)
@@ -312,11 +323,12 @@ await test('Canvas: connect with an access token, import classes, and sync on To
   await page.getByRole('button', { name: 'Sync with Canvas now' }).click()
   await page.getByText(/you submitted on Canvas/).waitFor()
   await page.waitForFunction((b) => Number(document.getElementById('xp-target')?.innerText.replace(/[^\d]/g, '')) > b, before, { timeout: 5000 })
-  assert(!(await page.getByText('Reading Response: Durkheim').count()) || (await page.getByRole('checkbox', { name: 'Undo Reading Response: Durkheim' }).count()) >= 0, 'submitted item still open')
   // Reload: still connected via the server session.
   await page.reload()
   await ready(page)
   await page.getByText(/Synced with Canvas/).waitFor()
+  await page.goto(`${BASE}/connect`)
+  await page.getByTestId('connect-connected').getByText('Connected as Jordan Rivera').waitFor()
   // Disconnect.
   await page.goto(`${BASE}/settings#canvas`)
   await page.getByTestId('canvas-status').getByRole('button', { name: 'Disconnect' }).click()
@@ -326,25 +338,12 @@ await test('Canvas: connect with an access token, import classes, and sync on To
   assert(status.state === 'signed_out', `server still signed in: ${JSON.stringify(status)}`)
 }, undefined, { fresh: true })
 
-await test('Canvas: sign in with Canvas (OAuth)', async (page) => {
-  await page.goto(`${BASE}/connect`)
-  await page.getByRole('button', { name: 'Sign in with Canvas' }).click()
-  await page.waitForURL(/localhost:8898\/login\/oauth2\/auth/)
-  await page.getByRole('link', { name: 'Authorize' }).click()
-  await page.getByTestId('connect-done').getByText('You’re connected, Jordan!').waitFor()
-}, undefined, { fresh: true })
-
-await test('Canvas: cancelling the Canvas sign-in explains what happened', async (page) => {
-  await page.goto(`${BASE}/connect`)
-  await page.getByRole('button', { name: 'Sign in with Canvas' }).click()
-  await page.getByRole('link', { name: 'Cancel' }).click()
-  await page.getByText('Canvas sign-in was cancelled').waitFor()
-}, undefined, { fresh: true })
-
 await test('Canvas: without the server, the page says so instead of pretending', async (page) => {
   await page.route('**/api/**', (r) => r.abort())
   await page.goto(`${BASE}/connect`)
-  await page.getByTestId('connect-no-server').getByText('Canvas sign-in isn’t available in this preview').waitFor()
+  await page.getByText('Preview: the last card can’t connect here').waitFor()
+  await connectThroughCards(page, 'canvas.example.edu', MOCK_TOKEN)
+  await page.getByRole('alert').getByText('Sign-in doesn’t work in this preview').waitFor()
   await page.getByRole('button', { name: 'Try the demo instead' }).click()
   await page.getByTestId('day-summary').waitFor()
 }, undefined, { allowNetworkErrors: true, fresh: true })
@@ -352,14 +351,14 @@ await test('Canvas: without the server, the page says so instead of pretending',
 await test('First launch opens on the sign-in screen, and the choice is remembered', async (page) => {
   await page.goto(`${BASE}/calendar`)
   await page.waitForURL(/\/connect$/)
-  await page.getByRole('heading', { name: 'Welcome to CampusFlow' }).waitFor()
+  await page.getByRole('heading', { name: 'Connect your Canvas' }).waitFor()
   assert(!(await page.getByRole('navigation', { name: 'Main' }).count()), 'app menus shown on the sign-in screen')
   await page.getByRole('button', { name: /Just looking\? Try the demo instead/ }).click()
   await page.getByTestId('day-summary').waitFor()
   await page.reload()
   await page.getByTestId('day-summary').waitFor()
   await page.goto(`${BASE}/connect`)
-  await page.getByRole('heading', { name: 'Connect Canvas' }).waitFor()
+  await page.getByRole('heading', { name: 'Connect Canvas', exact: true }).waitFor()
   await page.getByRole('navigation', { name: 'Main' }).waitFor()
 }, undefined, { fresh: true })
 

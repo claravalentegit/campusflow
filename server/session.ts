@@ -8,12 +8,8 @@ import { join } from 'node:path'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
 export interface CanvasSession {
-  kind: 'token' | 'oauth'
   baseUrl: string
   accessToken: string
-  refreshToken: string | null
-  /** Epoch ms when the OAuth access token expires. */
-  expiresAt: number | null
   userName: string
   userId: string
   createdAt: number
@@ -121,14 +117,6 @@ export function createSession(req: IncomingMessage, res: ServerResponse, data: O
   sessions.set(hashId(id), { ...data, createdAt: Date.now(), lastUsedAt: Date.now() })
   persist()
   setCookie(res, req, COOKIE, id, MAX_AGE_S)
-}
-
-export function updateSession(req: IncomingMessage, patch: Partial<CanvasSession>) {
-  const id = parseCookies(req)[COOKIE]
-  const s = id ? sessions.get(hashId(id)) : undefined
-  if (!s) return
-  Object.assign(s, patch)
-  persist()
 }
 
 export function destroySession(req: IncomingMessage, res: ServerResponse) {

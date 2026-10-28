@@ -1,17 +1,15 @@
 /**
  * A tiny fake Canvas LMS for tests and local demos of the sign-in flow.
  *   node e2e/mock-canvas.mjs [port]
- * Accepts the access token "mock-canvas-token-0123456789" and implements the OAuth2 screens.
+ * Accepts the access token "mock-canvas-token-0123456789".
  * Data follows the shapes of the real Canvas REST API.
  */
 import { createServer } from 'node:http'
 
 export const MOCK_TOKEN = 'mock-canvas-token-0123456789'
-const OAUTH = { clientId: 'mock-client', clientSecret: 'mock-secret' }
 
 export function startMockCanvas(port = 8898) {
   const valid = new Set([MOCK_TOKEN])
-  const refresh = new Map()
   const day = (d, h = 23, m = 59) => {
     const t = new Date()
     t.setDate(t.getDate() + d)
@@ -56,33 +54,6 @@ export function startMockCanvas(port = 8898) {
       const id = Number(p.split('/').pop())
       for (const list of Object.values(assignments)) for (const a of list) if (a.id === id) a.submission = { workflow_state: 'submitted', submitted_at: new Date().toISOString(), missing: false }
       return send(res, 200, { ok: true })
-    }
-    // OAuth2
-    if (p === '/login/oauth2/auth') {
-      const redirect = new URL(url.searchParams.get('redirect_uri'))
-      redirect.searchParams.set('code', 'mock-code')
-      redirect.searchParams.set('state', url.searchParams.get('state') ?? '')
-      const deny = new URL(url.searchParams.get('redirect_uri'))
-      deny.searchParams.set('error', 'access_denied')
-      res.writeHead(200, { 'Content-Type': 'text/html' })
-      return res.end(`<!doctype html><title>Mock Canvas</title><h1>Mock Canvas</h1><p>CampusFlow is requesting access to your account.</p><a href="${redirect}">Authorize</a> <a href="${deny}">Cancel</a>`)
-    }
-    if (p === '/login/oauth2/token' && req.method === 'POST') {
-      let body = ''
-      for await (const c of req) body += c
-      const f = new URLSearchParams(body)
-      if (f.get('client_id') !== OAUTH.clientId || f.get('client_secret') !== OAUTH.clientSecret) return send(res, 401, { error: 'invalid_client' })
-      if (f.get('grant_type') === 'authorization_code' && f.get('code') !== 'mock-code') return send(res, 400, { error: 'invalid_grant' })
-      if (f.get('grant_type') === 'refresh_token' && !refresh.has(f.get('refresh_token'))) return send(res, 400, { error: 'invalid_grant' })
-      const access = `oauth-access-${Math.random().toString(36).slice(2)}`
-      const r = `oauth-refresh-${Math.random().toString(36).slice(2)}`
-      valid.add(access)
-      refresh.set(r, access)
-      return send(res, 200, { access_token: access, refresh_token: r, expires_in: 3600, user: { id: 42, name: 'Jordan Rivera' } })
-    }
-    if (p === '/login/oauth2/token' && req.method === 'DELETE') {
-      valid.delete(String(req.headers.authorization ?? '').replace(/^Bearer /, ''))
-      return send(res, 200, {})
     }
     // REST API
     if (!p.startsWith('/api/v1/')) return send(res, 404, { errors: [{ message: 'not found' }] })

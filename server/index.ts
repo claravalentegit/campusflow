@@ -4,17 +4,16 @@
  *   node server/index.ts               API only (use with `npm run dev`, which proxies /api here)
  *   node server/index.ts --serve-dist  API + the built app from ./dist
  *
- * Students connect Canvas from the app ("Connect Canvas"), either by signing in with Canvas
- * (OAuth, needs a developer key) or with a personal access token. Tokens stay on this server.
+ * Students connect Canvas from the app ("Connect Canvas") by pasting a personal access token.
+ * Tokens stay on this server.
  * See .env.example for configuration.
  */
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { extname, join, normalize, resolve } from 'node:path'
 import { CanvasHttpError, fetchSnapshot, getOne, readCanvasConfig, type CanvasConfig } from './canvas.ts'
-import { finishOAuth, readOAuthConfig, refreshOAuth, revokeOAuth, startOAuth } from './oauth.ts'
 import { assertCsrfSafe, assertSafeCanvasHost, clientIp, HttpError, normalizeCanvasUrl, rateLimit, readJsonBody } from './security.ts'
-import { createSession, destroySession, getSession, initSessions, updateSession, type CanvasSession } from './session.ts'
+import { createSession, destroySession, getSession, initSessions, type CanvasSession } from './session.ts'
 
 const root = resolve(import.meta.dirname, '..')
 if (existsSync(join(root, '.env'))) process.loadEnvFile(join(root, '.env'))
@@ -23,7 +22,6 @@ const PORT = Number(process.env.PORT ?? 8787)
 const SERVE_DIST = process.argv.includes('--serve-dist')
 const DIST = join(root, 'dist')
 initSessions(resolve(root, process.env.DATA_DIR ?? '.data'))
-const oauth = readOAuthConfig(process.env, PORT)
 
 function json(res: ServerResponse, status: number, body: unknown) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' })
@@ -38,27 +36,11 @@ function credentials(req: IncomingMessage): { config: CanvasConfig; session: Can
   return config ? { config, session: null } : null
 }
 
-/** Run a Canvas call; if an OAuth token expired, refresh it once and retry. */
+/** Run a Canvas call with the browser's session token (or the single-user .env token). */
 async function withCanvas<T>(req: IncomingMessage, fn: (c: CanvasConfig) => Promise<T>): Promise<T> {
   const creds = credentials(req)
   if (!creds) throw new HttpError(401, 'Not connected to Canvas.')
-  const { session } = creds
-  if (session?.kind === 'oauth' && oauth && session.expiresAt && session.expiresAt < Date.now() + 60_000) {
-    const patch = await refreshOAuth(oauth, session)
-    if (patch) updateSession(req, patch)
-  }
-  try {
-    return await fn({ baseUrl: creds.config.baseUrl, token: session ? session.accessToken : creds.config.token })
-  } catch (e) {
-    if (e instanceof CanvasHttpError && e.status === 401 && session?.kind === 'oauth' && oauth) {
-      const patch = await refreshOAuth(oauth, session)
-      if (patch) {
-        updateSession(req, patch)
-        return fn({ baseUrl: session.baseUrl, token: patch.accessToken as string })
-      }
-    }
-    throw e
-  }
+  return fn(creds.config)
 }
 
 function canvasError(res: ServerResponse, e: unknown) {
@@ -75,7 +57,7 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL) {
   if (path === '/api/health') return json(res, 200, { ok: true })
 
   if (path === '/api/auth/options' && method === 'GET') {
-    return json(res, 200, { oauth: oauth ? { host: new URL(oauth.baseUrl).host } : null, token: true })
+    return json(res, 200, { token: true })
   }
 
   if (path === '/api/auth/token' && method === 'POST') {
@@ -93,33 +75,22 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL) {
       if (e instanceof CanvasHttpError && e.status === 401) throw new HttpError(401, 'Canvas didn’t accept that token. Make sure you copied all of it and that it hasn’t expired.')
       throw new HttpError(502, `Couldn’t reach Canvas at ${new URL(baseUrl).host}. Check the address.`)
     }
-    createSession(req, res, { kind: 'token', baseUrl, accessToken: token, refreshToken: null, expiresAt: null, userName: self.name ?? 'Canvas user', userId: String(self.id ?? '') })
+    createSession(req, res, { baseUrl, accessToken: token, userName: self.name ?? 'Canvas user', userId: String(self.id ?? '') })
     return json(res, 200, { state: 'connected', userName: self.name ?? 'Canvas user', baseHost: new URL(baseUrl).host })
-  }
-
-  if (path === '/api/auth/oauth/start' && method === 'GET') {
-    if (!oauth) throw new HttpError(404, 'Sign in with Canvas isn’t set up on this server.')
-    return startOAuth(req, res, oauth)
-  }
-  if (path === '/api/auth/oauth/callback' && method === 'GET') {
-    if (!oauth) throw new HttpError(404, 'Sign in with Canvas isn’t set up on this server.')
-    return finishOAuth(req, res, oauth, url.searchParams)
   }
 
   if (path === '/api/auth/logout' && method === 'POST') {
     assertCsrfSafe(req)
-    const s = getSession(req)
-    if (s?.kind === 'oauth') await revokeOAuth(s)
     destroySession(req, res)
     return json(res, 200, { ok: true })
   }
 
   if (path === '/api/canvas/status' && method === 'GET') {
     const creds = credentials(req)
-    if (!creds) return json(res, 200, { state: 'signed_out', oauthHost: oauth ? new URL(oauth.baseUrl).host : null })
+    if (!creds) return json(res, 200, { state: 'signed_out' })
     try {
       const self = await withCanvas(req, (c) => getOne<{ name?: string }>(c, '/users/self'))
-      return json(res, 200, { state: 'connected', userName: self.name ?? 'Canvas user', baseHost: new URL(creds.config.baseUrl).host, method: creds.session?.kind ?? 'server' })
+      return json(res, 200, { state: 'connected', userName: self.name ?? 'Canvas user', baseHost: new URL(creds.config.baseUrl).host, method: creds.session ? 'token' : 'server' })
     } catch (e) {
       if (e instanceof CanvasHttpError && e.status === 401) return json(res, 200, { state: 'unauthorized', message: 'Canvas sign-in expired or was revoked. Connect again.' })
       return json(res, 200, { state: 'error', message: e instanceof Error ? e.message : 'Couldn’t reach Canvas.' })
@@ -173,5 +144,5 @@ createServer((req, res) => {
   if (SERVE_DIST) return serveStatic(res, path)
   json(res, 404, { message: 'Not found' })
 }).listen(PORT, () => {
-  console.log(`CampusFlow server on http://localhost:${PORT} — Canvas sign-in: access token${oauth ? ` + OAuth (${new URL(oauth.baseUrl).host})` : ''}`)
+  console.log(`CampusFlow server on http://localhost:${PORT}`)
 })
