@@ -1,0 +1,41 @@
+import { NavLink } from 'react-router-dom'
+import { motion } from 'motion/react'
+import { Plus } from 'lucide-react'
+import { useUi } from '@/store/ui'
+import { cn } from '../ui/cn'
+import { ME_ITEM, NAV_ITEMS, type NavItem } from './nav'
+
+function Tab({ item }: { item: NavItem }) {
+  return (
+    <NavLink to={item.to} end={item.end} className={({ isActive }) => cn('relative flex flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-black', isActive ? 'text-accent-text' : 'text-fg-3')}>
+      {({ isActive }) => (
+        <>
+          <motion.span animate={isActive ? { y: -2, scale: 1.12 } : { y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 500, damping: 20 }}>
+            <item.icon className="size-6" strokeWidth={2.4} aria-hidden />
+          </motion.span>
+          {item.label}
+          {isActive && <motion.span layoutId="tab-dot" className="absolute top-1 h-1 w-6 rounded-full bg-accent" />}
+        </>
+      )}
+    </NavLink>
+  )
+}
+
+/** Phone tab bar: Today · Courses · + · Calendar · Me. */
+export function BottomNav() {
+  const openQuickAdd = useUi((s) => s.openQuickAdd)
+  const [today, courses, calendar] = NAV_ITEMS
+  return (
+    <nav aria-label="Tabs" className="fixed inset-x-0 bottom-0 z-30 flex h-[76px] border-t-2 border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md sm:hidden">
+      <Tab item={today} />
+      <Tab item={courses} />
+      <div className="flex flex-1 items-center justify-center">
+        <motion.button whileTap={{ scale: 0.85, rotate: 90 }} type="button" aria-label="Add" onClick={() => openQuickAdd()} className="btn-3d -mt-5 grid size-14 place-items-center rounded-2xl bg-accent text-white [--press:var(--accent-press)]">
+          <Plus className="size-7" strokeWidth={3} aria-hidden />
+        </motion.button>
+      </div>
+      <Tab item={calendar} />
+      <Tab item={ME_ITEM} />
+    </nav>
+  )
+}
