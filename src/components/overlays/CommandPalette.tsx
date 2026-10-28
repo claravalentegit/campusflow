@@ -122,11 +122,11 @@ export function CommandPalette() {
         setOpen(false)
       }}
       onMouseDown={(e) => e.target === ref.current && setOpen(false)}
-      className="mx-auto mt-[12vh] w-[calc(100%-24px)] max-w-xl overflow-hidden rounded-xl border border-line bg-surface p-0 text-fg shadow-lg open:animate-pop-in"
+      className="mx-auto mt-[12vh] w-[calc(100%-24px)] max-w-xl overflow-hidden rounded-[24px] border-2 border-b-[5px] border-line bg-surface p-0 text-fg shadow-lg open:animate-[dialog-in_280ms_cubic-bezier(.2,1.4,.4,1)]"
     >
       {open && (
         <div onKeyDown={onKeyDown}>
-          <div className="flex items-center gap-2.5 border-b border-line px-4">
+          <div className="flex items-center gap-3 border-b-2 border-line px-5">
             <Search className="size-4 shrink-0 text-fg-3" aria-hidden />
             <input
               autoFocus
@@ -141,15 +141,15 @@ export function CommandPalette() {
               aria-expanded
               aria-controls="palette-list"
               aria-activedescendant={flat[activeIndex] ? `palette-${flat[activeIndex].key}` : undefined}
-              className="h-12 min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-fg-3"
+              className="h-14 min-w-0 flex-1 bg-transparent text-base font-bold outline-none placeholder:font-semibold placeholder:text-fg-3"
             />
-            <kbd className="hidden rounded border border-line px-1.5 text-2xs text-fg-3 sm:inline">Esc</kbd>
+            <kbd className="hidden rounded-md border-2 border-line px-1.5 text-xs font-bold text-fg-3 sm:inline">Esc</kbd>
           </div>
           <div id="palette-list" ref={listRef} role="listbox" className="scrollbar-thin max-h-[min(60vh,440px)] overflow-y-auto p-1.5">
             {q && results.length === 0 && matchedCommands.length === 0 && <p className="px-3 py-8 text-center text-sm text-fg-3">No results for “{query}”.</p>}
             {[...grouped.entries()].map(([cat, items]) => (
               <div key={cat} role="group" aria-label={CATEGORY_LABEL[cat]} className="mb-1">
-                <p className="px-2.5 pt-2 pb-1 text-2xs font-semibold tracking-wide text-fg-3 uppercase">{CATEGORY_LABEL[cat]}</p>
+                <p className="px-3 pt-2.5 pb-1 text-xs font-black tracking-[0.12em] text-fg-3 uppercase">{CATEGORY_LABEL[cat]}</p>
                 {items.map((r) => {
                   index++
                   const i = index
@@ -164,7 +164,7 @@ export function CommandPalette() {
                       data-index={i}
                       onMouseMove={() => setActive(i)}
                       onClick={() => runAt(i)}
-                      className={cn('flex cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-2 text-sm', i === activeIndex && 'bg-surface-2')}
+                      className={cn('flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-bold transition-colors', i === activeIndex && 'bg-accent-soft text-accent-text')}
                     >
                       <Icon className="size-4 shrink-0 text-fg-3" aria-hidden />
                       <span className="min-w-0 flex-1 truncate">{r.title}</span>
@@ -177,7 +177,7 @@ export function CommandPalette() {
             ))}
             {matchedCommands.length > 0 && (
               <div role="group" aria-label="Commands">
-                <p className="px-2.5 pt-2 pb-1 text-2xs font-semibold tracking-wide text-fg-3 uppercase">{q ? 'Commands' : 'Quick actions'}</p>
+                <p className="px-3 pt-2.5 pb-1 text-xs font-black tracking-[0.12em] text-fg-3 uppercase">{q ? 'Commands' : 'Quick actions'}</p>
                 {matchedCommands.map((c) => {
                   index++
                   const i = index
@@ -190,7 +190,7 @@ export function CommandPalette() {
                       data-index={i}
                       onMouseMove={() => setActive(i)}
                       onClick={() => runAt(i)}
-                      className={cn('flex cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-2 text-sm', i === activeIndex && 'bg-surface-2')}
+                      className={cn('flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-bold transition-colors', i === activeIndex && 'bg-accent-soft text-accent-text')}
                     >
                       <c.icon className="size-4 shrink-0 text-fg-3" aria-hidden />
                       <span className="flex-1">{c.label}</span>

@@ -59,14 +59,14 @@ export function Menu({ trigger, items, align = 'end', side = 'bottom', className
           ref={list}
           role="menu"
           className={cn(
-            'absolute z-40 min-w-44 animate-pop-in rounded-lg border border-line bg-surface p-1 shadow-lg',
+            'absolute z-40 min-w-48 animate-pop-in rounded-2xl border-2 border-line bg-surface p-1.5 shadow-lg',
             align === 'end' ? 'right-0' : 'left-0',
             side === 'bottom' ? 'top-full mt-1' : 'bottom-full mb-1',
           )}
         >
           {items.map((item, i) =>
             item === 'separator' ? (
-              <div key={`sep-${i}`} role="separator" className="my-1 h-px bg-line" />
+              <div key={`sep-${i}`} role="separator" className="my-1.5 h-0.5 rounded-full bg-line" />
             ) : (
               <button
                 key={item.label}
@@ -78,7 +78,7 @@ export function Menu({ trigger, items, align = 'end', side = 'bottom', className
                   item.onSelect()
                 }}
                 className={cn(
-                  'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none hover:bg-surface-2 focus-visible:bg-surface-2 disabled:opacity-40',
+                  'flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-bold outline-none transition-colors hover:bg-surface-2 focus-visible:bg-surface-2 active:scale-[0.98] disabled:opacity-40',
                   item.tone === 'danger' ? 'text-danger' : 'text-fg',
                 )}
               >

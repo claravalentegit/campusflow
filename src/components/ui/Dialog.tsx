@@ -51,24 +51,24 @@ export function Dialog({ open, onClose, title, description, children, footer, si
         if (e.target === ref.current) onClose()
       }}
       className={cn(
-        'm-auto max-h-[min(92dvh,860px)] w-[calc(100%-24px)] overflow-hidden rounded-xl border border-line bg-surface p-0 text-fg shadow-lg backdrop:animate-fade-in open:animate-pop-in',
-        'max-sm:mb-0 max-sm:w-full max-sm:max-w-none max-sm:rounded-b-none',
+        'm-auto max-h-[min(92dvh,860px)] w-[calc(100%-24px)] overflow-hidden rounded-[28px] border-2 border-b-[5px] border-line bg-surface p-0 text-fg shadow-lg backdrop:animate-fade-in open:animate-[dialog-in_320ms_cubic-bezier(.2,1.4,.4,1)]',
+        'max-sm:mb-0 max-sm:w-full max-sm:max-w-none max-sm:rounded-b-none max-sm:border-b-2',
         size === 'sm' ? 'max-w-md' : size === 'lg' ? 'max-w-3xl' : 'max-w-xl',
       )}
     >
       {open && (
         <div className="flex max-h-[inherit] flex-col">
-          <header className="flex items-start gap-3 border-b border-line px-5 py-4">
+          <header className="flex items-start gap-3 px-6 pt-5 pb-3">
             <div className="min-w-0 flex-1">
-              <h2 id="dialog-title" className="text-lg font-semibold">
+              <h2 id="dialog-title" className="text-xl font-black">
                 {title}
               </h2>
-              {description && <p className="mt-0.5 text-sm text-fg-3">{description}</p>}
+              {description && <p className="mt-0.5 text-sm font-semibold text-fg-3">{description}</p>}
             </div>
             <IconButton icon={X} label="Close" size="sm" onClick={onClose} tooltip={false} className="-mr-1.5" />
           </header>
-          <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
-          {footer && <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-line bg-surface-2/50 px-5 py-3">{footer}</footer>}
+          <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto px-6 py-3">{children}</div>
+          {footer && <footer className="flex flex-wrap items-center justify-end gap-2 border-t-2 border-line px-6 py-4">{footer}</footer>}
         </div>
       )}
     </dialog>
@@ -116,7 +116,7 @@ export function ConfirmHost() {
         </>
       }
     >
-      <div className="text-sm text-fg-2">{request?.message}</div>
+      <div className="text-sm font-semibold text-fg-2">{request?.message}</div>
     </Dialog>
   )
 }

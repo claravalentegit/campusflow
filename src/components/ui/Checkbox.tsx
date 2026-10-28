@@ -1,35 +1,21 @@
-import { Check } from 'lucide-react'
+import { useId, type ReactNode } from 'react'
+import { motion } from 'motion/react'
 import { cn } from './cn'
 
-/** Round completion toggle used for tasks and assignments. */
-export function CompleteToggle({ checked, onChange, label, color, className }: { checked: boolean; onChange: () => void; label: string; color?: string; className?: string }) {
+/** On/off switch. Keeps a real checkbox underneath for forms and screen readers. */
+export function Checkbox({ checked, onChange, label, id, className, description }: { checked: boolean; onChange: (v: boolean) => void; label: ReactNode; id?: string; className?: string; description?: ReactNode }) {
+  const auto = useId()
+  const inputId = id ?? auto
   return (
-    <button
-      type="button"
-      role="checkbox"
-      aria-checked={checked}
-      aria-label={label}
-      onClick={(e) => {
-        e.stopPropagation()
-        onChange()
-      }}
-      style={color && !checked ? { borderColor: color } : undefined}
-      className={cn(
-        'group/cb relative z-[1] flex size-[18px] shrink-0 items-center justify-center rounded-full border-[1.5px] transition-colors before:absolute before:-inset-2 before:content-[""]',
-        checked ? 'border-success bg-success text-white' : 'border-line-strong hover:bg-surface-2',
-        className,
-      )}
-    >
-      <Check className={cn('size-3 transition-opacity', checked ? 'opacity-100' : 'opacity-0 group-hover/cb:opacity-40')} strokeWidth={3} aria-hidden />
-    </button>
-  )
-}
-
-export function Checkbox({ checked, onChange, label, id, className }: { checked: boolean; onChange: (v: boolean) => void; label: React.ReactNode; id?: string; className?: string }) {
-  return (
-    <label htmlFor={id} className={cn('inline-flex cursor-pointer items-center gap-2 text-sm text-fg-2', className)}>
-      <input id={id} type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="size-4 rounded accent-[var(--accent)]" />
-      {label}
+    <label htmlFor={inputId} className={cn('group inline-flex cursor-pointer items-center gap-3 text-sm font-bold text-fg', className)}>
+      <input id={inputId} type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="peer sr-only" />
+      <span className={cn('relative h-7 w-12 shrink-0 rounded-full transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--ring)]', checked ? 'bg-success-bright shadow-[inset_0_-3px_0_var(--success-press)]' : 'bg-surface-3 shadow-[inset_0_-3px_0_var(--line-strong)]')} aria-hidden>
+        <motion.span className="absolute top-1 left-1 size-5 rounded-full bg-white shadow-md" animate={{ x: checked ? 20 : 0 }} transition={{ type: 'spring', stiffness: 600, damping: 30 }} />
+      </span>
+      <span className="flex flex-col">
+        {label}
+        {description && <span className="text-xs font-semibold text-fg-3">{description}</span>}
+      </span>
     </label>
   )
 }

@@ -9,12 +9,12 @@ const TONE: Record<BadgeTone, string> = {
   warn: 'bg-warn-soft text-warn',
   danger: 'bg-danger-soft text-danger',
   success: 'bg-success-soft text-success',
-  outline: 'border border-line text-fg-2',
+  outline: 'border-2 border-line text-fg-2',
 }
 
 export function Badge({ tone = 'neutral', children, className, title }: { tone?: BadgeTone; children: ReactNode; className?: string; title?: string }) {
   return (
-    <span title={title} className={cn('inline-flex h-5 shrink-0 items-center gap-1 rounded-sm px-1.5 text-2xs font-medium whitespace-nowrap', TONE[tone], className)}>
+    <span title={title} className={cn('inline-flex h-6 shrink-0 items-center gap-1 rounded-full px-2.5 text-xs font-extrabold whitespace-nowrap', TONE[tone], className)}>
       {children}
     </span>
   )

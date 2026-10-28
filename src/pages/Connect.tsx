@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { ArrowLeft, ArrowRight, CheckCircle2, ClipboardPaste, ExternalLink, Eye, EyeOff, Globe, KeyRound, Loader2, Plug, RefreshCw, Settings2, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, ArrowRight, CheckCircle2, ClipboardPaste, ExternalLink, Eye, EyeOff, Globe, KeyRound, Laptop, Loader2, Plug, RefreshCw, Settings2, ShieldCheck } from 'lucide-react'
 import { canvasApi, CanvasError } from '@/integrations/canvas/adapter'
 import type { CanvasStatus } from '@/integrations/canvas/types'
 import { syncCanvas, useCanvasSync, type SyncResult } from '@/integrations/canvas/sync'
@@ -30,7 +30,7 @@ export function hostFrom(input: string): string | null {
 /** The steps of the sign-in deck, in order. */
 const STEPS = ['welcome', 'address', 'settings', 'token', 'paste'] as const
 type Step = (typeof STEPS)[number]
-type Card = Step | 'importing' | 'done' | 'connected' | 'checking'
+type Card = Step | 'importing' | 'done' | 'connected' | 'checking' | 'preview'
 
 export function Connect() {
   usePageTitle('Connect Canvas')
@@ -121,7 +121,11 @@ export function Connect() {
       setTimeout(cannons, 250)
     } catch (e) {
       const err = e as CanvasError
-      fail(err.status === 0 ? 'Sign-in doesn’t work in this preview. Install CampusFlow on your computer to finish connecting.' : err.message)
+      if (err.status === 0) {
+        // No CampusFlow server here (the chat preview): explain instead of showing an error.
+        setToken('')
+        go('preview')
+      } else fail(err.message)
     } finally {
       setBusy(false)
     }
@@ -135,7 +139,7 @@ export function Connect() {
         <span className="flex items-center gap-2 text-lg font-black text-accent-text">
           <BrandMark className="size-8" /> CampusFlow
         </span>
-        {serverOk === false && <span className="rounded-full bg-warn-soft px-3 py-1 text-xs font-black text-warn">Preview: the last card can’t connect here</span>}
+        {serverOk === false && <span className="rounded-full bg-warn-soft px-3 py-1 text-xs font-black text-warn">Preview: practice run, can’t connect</span>}
       </div>
 
       {/* Progress dots */}
@@ -143,7 +147,7 @@ export function Connect() {
         {STEPS.map((s, i) => (
           <motion.span
             key={s}
-            className={cn('h-2.5 rounded-full', i <= index || ['importing', 'done', 'connected'].includes(card) ? 'bg-accent' : 'bg-surface-3')}
+            className={cn('h-2.5 rounded-full', i <= index || ['importing', 'done', 'connected', 'preview'].includes(card) ? 'bg-accent' : 'bg-surface-3')}
             animate={{ width: s === card ? 28 : 10 }}
             transition={{ type: 'spring', stiffness: 400, damping: 28 }}
           />
@@ -309,6 +313,26 @@ export function Connect() {
                 <p className="text-sm font-semibold text-fg-2">CampusFlow keeps them up to date by itself. Work you submit on Canvas earns XP here too.</p>
                 <Button variant="primary" size="lg" className="w-full" iconRight={ArrowRight} onClick={() => navigate('/')} autoFocus>
                   Let’s go
+                </Button>
+              </div>
+            )}
+
+            {card === 'preview' && (
+              <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center" data-testid="connect-preview">
+                <motion.span initial={{ scale: 0, rotate: -20 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 300, damping: 12 }} className="grid size-20 place-items-center rounded-3xl border-b-[5px] border-gold-press bg-gold text-white">
+                  <Laptop className="size-10" aria-hidden />
+                </motion.span>
+                <h1 className="text-2xl font-black">You did everything right!</h1>
+                <p className="text-base font-semibold text-fg-2">This is just a preview, and a preview page isn’t allowed to talk to Canvas. Canvas blocks that so no random website can read your stuff.</p>
+                <div className="card-3d w-full p-4 text-left">
+                  <p className="text-sm font-black">To really connect</p>
+                  <p className="mt-1 text-sm font-semibold text-fg-2">CampusFlow needs to run on your own computer. Then these same cards will import your real classes. Your token wasn’t saved here, so you’ll paste it again there.</p>
+                </div>
+                <Button variant="primary" size="lg" className="w-full" onClick={skip} autoFocus>
+                  {skipLabel} for now
+                </Button>
+                <Button variant="ghost" icon={ArrowLeft} onClick={() => go('paste', -1)}>
+                  Back
                 </Button>
               </div>
             )}

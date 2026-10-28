@@ -378,3 +378,7 @@
   background-size: 28px 28px;
   animation: stripes 1s linear infinite;
 }
+
+@keyframes dialog-in {
+  from { opacity: 0; transform: translateY(24px) scale(0.92); }
+}

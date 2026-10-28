@@ -341,10 +341,10 @@ await test('Canvas: connect with an access token, import classes, and sync on To
 await test('Canvas: without the server, the page says so instead of pretending', async (page) => {
   await page.route('**/api/**', (r) => r.abort())
   await page.goto(`${BASE}/connect`)
-  await page.getByText('Preview: the last card can’t connect here').waitFor()
+  await page.getByText('Preview: practice run, can’t connect').waitFor()
   await connectThroughCards(page, 'canvas.example.edu', MOCK_TOKEN)
-  await page.getByRole('alert').getByText('Sign-in doesn’t work in this preview').waitFor()
-  await page.getByRole('button', { name: 'Try the demo instead' }).click()
+  await page.getByTestId('connect-preview').getByText('You did everything right!').waitFor()
+  await page.getByRole('button', { name: 'Try the demo instead for now' }).click()
   await page.getByTestId('day-summary').waitFor()
 }, undefined, { allowNetworkErrors: true, fresh: true })
 

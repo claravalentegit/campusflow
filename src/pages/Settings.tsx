@@ -1,23 +1,26 @@
-import { useEffect } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useEffect, type ReactNode } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { motion } from 'motion/react'
 import { format } from 'date-fns'
-import { Download, Plug, RefreshCw, RotateCcw, ShieldCheck, Sparkles, Trash2 } from 'lucide-react'
+import { CalendarClock, Check, Database, Download, Flame, Gamepad2, Minus, Monitor, Moon, Palette, Plug, Plus, RefreshCw, RotateCcw, ShieldCheck, Sparkles, Sun, Timer, Trash2, Volume2 } from 'lucide-react'
 import { formatMinutes } from '@/domain/dates'
-import type { Preferences, Weekday } from '@/domain/types'
+import type { Preferences, ThemePreference, Weekday } from '@/domain/types'
 import { WEEKDAYS } from '@/domain/types'
 import { syncCanvas, useCanvasSync } from '@/integrations/canvas/sync'
-import { useDisconnect } from './Connect'
 import { selectData, STORAGE_KEY, useStore } from '@/store/appStore'
 import { toast } from '@/store/ui'
-import { Page, PageHeader, usePageTitle } from '@/components/Page'
+import { sfx } from '@/game/fx'
+import { LevelBadge, ProgressBar, useXp } from '@/components/game/GameUI'
+import { Page, usePageTitle } from '@/components/Page'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { confirm } from '@/components/ui/Dialog'
-import { Field, Input, Select } from '@/components/ui/Field'
+import { Input } from '@/components/ui/Field'
 import { Panel } from '@/components/ui/Panel'
 import { Segmented } from '@/components/ui/Segmented'
-import { sfx } from '@/game/fx'
+import { cn } from '@/components/ui/cn'
+import { useDisconnect } from './Connect'
 
 const DAY_LABEL: Record<Weekday, string> = { sun: 'Sun', mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat' }
 const DEFAULT_AVAILABILITY: Record<Weekday, number> = { sun: 120, mon: 180, tue: 180, wed: 180, thu: 180, fri: 120, sat: 60 }
@@ -32,121 +35,234 @@ export function Settings() {
   }, [hash])
 
   return (
-    <Page>
-      <PageHeader title="Settings" description="Preferences are saved in this browser." />
+    <Page className="max-w-3xl">
+      <h1 className="mb-5 text-3xl font-black tracking-tight">Settings</h1>
       <div className="flex flex-col gap-5">
-        <Panel title="Profile & appearance" id="profile">
-          <div className="grid gap-4 px-4 py-4 sm:grid-cols-2">
-            <Field label="Display name" hint="Used in your greeting.">
-              {(p) => <Input {...p} value={prefs.displayName} maxLength={40} onChange={(e) => update({ displayName: e.target.value })} />}
-            </Field>
-            <div className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-fg-2">Theme</span>
-              <Segmented label="Theme" value={prefs.theme} onChange={(theme) => update({ theme })} options={[{ value: 'system', label: 'System' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]} className="self-start" />
-            </div>
-            <Field label="Week starts on">
-              {(p) => (
-                <Select {...p} value={prefs.weekStartsOn} onChange={(e) => update({ weekStartsOn: Number(e.target.value) as 0 | 1 })}>
-                  <option value={1}>Monday</option>
-                  <option value={0}>Sunday</option>
-                </Select>
-              )}
-            </Field>
-            <div className="flex items-end">
-              <Checkbox checked={prefs.sidebarCompact} onChange={(v) => update({ sidebarCompact: v })} label="Compact sidebar (icons only, desktop)" />
-            </div>
+        <ProfileCard />
+
+        <Panel id="game" title="Game" description="How the XP game works for you." icon={Gamepad2} tone="fire" bodyClassName="flex flex-col gap-6 px-5 pt-2 pb-5">
+          <div>
+            <p className="text-sm font-extrabold">Daily quest</p>
+            <p className="mb-3 text-xs font-semibold text-fg-3">How many things to finish each day for a gold day and to keep your streak.</p>
+            <ChoiceChips
+              label="Daily quest goal"
+              value={prefs.dailyGoal}
+              options={[1, 2, 3, 4, 5, 6].map((n) => ({ value: n, label: String(n), sub: n === 1 ? 'thing' : 'things' }))}
+              onChange={(n) => update({ dailyGoal: n })}
+              big
+              icon={<Flame className="size-3.5" aria-hidden />}
+            />
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Checkbox checked={prefs.sound} onChange={(v) => update({ sound: v })} label="Sound effects" description="Pops, coins and fanfares when you finish things" />
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={Volume2}
+              disabled={!prefs.sound}
+              onClick={() => {
+                sfx.pop()
+                setTimeout(sfx.coin, 60)
+              }}
+            >
+              Play a sound
+            </Button>
+          </div>
+          <div>
+            <p className="text-sm font-extrabold">Focus session length</p>
+            <p className="mb-3 text-xs font-semibold text-fg-3">Every focused minute earns 1 XP.</p>
+            <ChoiceChips label="Focus session length" value={prefs.focusMinutes} options={[15, 25, 45, 60, 90].map((m) => ({ value: m, label: String(m), sub: 'min' }))} onChange={(m) => update({ focusMinutes: m })} icon={<Timer className="size-3.5" aria-hidden />} />
           </div>
         </Panel>
 
-        <Panel title="Game" id="game" description="How the XP game works for you.">
-          <div className="grid gap-4 px-4 py-4 sm:grid-cols-2">
-            <Field label="Daily quest: things to finish each day" hint="Hit it to make the day gold and keep your streak.">
-              {(p) => (
-                <Select {...p} value={prefs.dailyGoal} onChange={(e) => update({ dailyGoal: Number(e.target.value) })}>
-                  {[1, 2, 3, 4, 5, 6].map((n) => (
-                    <option key={n} value={n}>
-                      {n} {n === 1 ? 'thing' : 'things'} a day
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </Field>
-            <div className="flex flex-col gap-2">
-              <span className="text-xs font-medium text-fg-2">Sound effects</span>
-              <div className="flex items-center gap-3">
-                <Checkbox checked={prefs.sound} onChange={(v) => update({ sound: v })} label="Play sounds when I finish things" />
-                <Button size="sm" variant="secondary" disabled={!prefs.sound} onClick={() => { sfx.pop(); setTimeout(sfx.coin, 60) }}>
-                  Test
-                </Button>
-              </div>
-              <p className="text-xs text-fg-3">Animations follow your device’s reduce-motion setting.</p>
+        <Panel id="look" title="Look" icon={Palette} tone="pink" bodyClassName="flex flex-col gap-5 px-5 pt-2 pb-5">
+          <ThemePicker value={prefs.theme} onChange={(theme) => update({ theme })} />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-extrabold">Week starts on</p>
+              <p className="text-xs font-semibold text-fg-3">For the calendar and your weekly goal</p>
             </div>
+            <Segmented label="Week starts on" value={String(prefs.weekStartsOn) as '0' | '1'} onChange={(v) => update({ weekStartsOn: Number(v) as 0 | 1 })} options={[{ value: '1', label: 'Monday' }, { value: '0', label: 'Sunday' }]} />
           </div>
         </Panel>
 
-        <AvailabilityPanel prefs={prefs} update={update} />
-
-        <Panel title="Planning" id="planning">
-          <div className="grid gap-4 px-4 py-4 sm:grid-cols-2">
-            <Field label="Flag a day as overloaded above" hint={prefs.availability ? 'Not used while weekly availability is set.' : 'Used when you haven’t set your availability.'}>
-              {(p) => (
-                <Select {...p} value={prefs.overloadThresholdMinutes} onChange={(e) => update({ overloadThresholdMinutes: Number(e.target.value) })}>
-                  {[120, 180, 240, 300, 360, 480].map((m) => (
-                    <option key={m} value={m}>
-                      {formatMinutes(m)} of work
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </Field>
-            <Field label="Default focus session length">
-              {(p) => (
-                <Select {...p} value={prefs.focusMinutes} onChange={(e) => update({ focusMinutes: Number(e.target.value) })}>
-                  {[15, 25, 45, 50, 60, 90].map((m) => (
-                    <option key={m} value={m}>
-                      {m} minutes
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </Field>
-          </div>
-        </Panel>
-
+        <StudyTimePanel prefs={prefs} update={update} />
         <CanvasPanel />
-        <AssistantPanel />
+
+        <Panel id="assistant" title="Planning helper" description="Suggestions for stages and what to do next." icon={Sparkles} tone="blue" bodyClassName="flex flex-col gap-4 px-5 pt-2 pb-5">
+          <div className="flex flex-wrap gap-2">
+            <Badge tone="success">Rule-based: active</Badge>
+            <Badge tone="outline">AI: not set up</Badge>
+          </div>
+          <p className="text-sm font-semibold text-fg-2">Suggestions use simple, transparent rules that run in your browser. No AI service is connected, and nothing about your coursework leaves your device.</p>
+          <Checkbox checked={prefs.aiConsent} onChange={(v) => update({ aiConsent: v })} label="Allow AI help later" description="If an AI helper is added, it may read assignment text you choose" />
+        </Panel>
+
         <DataPanel />
       </div>
     </Page>
   )
 }
 
-function AvailabilityPanel({ prefs, update }: { prefs: Preferences; update: (p: Partial<Preferences>) => void }) {
-  const a = prefs.availability
+/** Your player card: avatar, level, and name. */
+function ProfileCard() {
+  const name = useStore((s) => s.prefs.displayName)
+  const update = useStore((s) => s.updatePrefs)
+  const { level, title, progress, into, needed } = useXp()
   return (
-    <Panel title="Available study time" id="availability" description="Used to warn about overloaded days and to suggest work that fits. Leave off if you’d rather not say.">
-      <div className="flex flex-col gap-4 px-4 py-4">
-        <Checkbox checked={!!a} onChange={(on) => update({ availability: on ? DEFAULT_AVAILABILITY : null })} label="Plan around the time I have each day" />
-        {a ? (
-          <div className="grid grid-cols-4 gap-3 sm:grid-cols-7">
-            {WEEKDAYS.map((d) => (
-              <Field key={d} label={DAY_LABEL[d]}>
-                {(p) => (
-                  <Select {...p} value={a[d]} onChange={(e) => update({ availability: { ...a, [d]: Number(e.target.value) } })}>
-                    {[0, 30, 60, 90, 120, 180, 240, 300, 360, 480].map((m) => (
-                      <option key={m} value={m}>
-                        {m === 0 ? 'None' : formatMinutes(m)}
-                      </option>
-                    ))}
-                  </Select>
-                )}
-              </Field>
-            ))}
+    <section id="profile" className="card-3d relative overflow-hidden p-5 sm:p-6">
+      <span aria-hidden className="pointer-events-none absolute -top-12 -right-12 size-44 rounded-full bg-accent-soft" />
+      <div className="relative flex flex-col items-center gap-4 sm:flex-row">
+        <span className="relative grid size-20 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#ffd56b] to-[#ff8a4c] text-3xl font-black text-white ring-4 ring-gold ring-offset-4 ring-offset-surface">
+          {(name || 'S').slice(0, 1).toUpperCase()}
+          <LevelBadge level={level} size="sm" className="absolute -right-2 -bottom-2" />
+        </span>
+        <div className="w-full min-w-0 flex-1">
+          <label htmlFor="display-name" className="text-xs font-black tracking-[0.12em] text-fg-3 uppercase">
+            Your name
+          </label>
+          <Input id="display-name" value={name} maxLength={40} onChange={(e) => update({ displayName: e.target.value })} className="mt-1 h-12 text-lg font-black" placeholder="What should we call you?" />
+          <div className="mt-3 flex items-center gap-3">
+            <span className="shrink-0 text-sm font-extrabold text-accent-text">
+              Level {level} · {title}
+            </span>
+            <ProgressBar value={progress} className="flex-1" label="Progress to next level" />
+            <span className="tabular shrink-0 text-xs font-bold text-fg-3">
+              {into}/{needed}
+            </span>
           </div>
-        ) : (
-          <p className="text-xs text-fg-3">Not set. CampusFlow won’t assume how much free time you have; it will use the overload threshold below instead.</p>
-        )}
+        </div>
       </div>
+    </section>
+  )
+}
+
+/** Row of chunky 3D choice buttons; the selected one pops. */
+function ChoiceChips<T extends number>({ label, value, options, onChange, big, icon }: { label: string; value: T; options: Array<{ value: T; label: string; sub?: string }>; onChange: (v: T) => void; big?: boolean; icon?: ReactNode }) {
+  return (
+    <div role="radiogroup" aria-label={label} className="flex flex-wrap gap-2">
+      {options.map((o) => {
+        const active = o.value === value
+        return (
+          <motion.button
+            key={o.value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            aria-label={`${o.label} ${o.sub ?? ''}`.trim()}
+            whileTap={{ scale: 0.9 }}
+            animate={active ? { scale: [1, 1.12, 1] } : { scale: 1 }}
+            transition={{ duration: 0.3 }}
+            onClick={() => {
+              if (!active) sfx.tap()
+              onChange(o.value)
+            }}
+            className={cn(
+              'btn-3d flex flex-col items-center justify-center rounded-2xl border-2 font-black',
+              big ? 'size-16 text-2xl' : 'h-14 min-w-16 px-3 text-lg',
+              active ? 'border-transparent bg-accent text-white [--press:var(--accent-press)]' : 'border-line bg-surface text-fg-2 [--press:var(--line)] hover:border-line-strong',
+            )}
+          >
+            <span className="leading-none">{o.label}</span>
+            {o.sub && (
+              <span className={cn('mt-1 flex items-center gap-0.5 text-[10px] leading-none font-extrabold', active ? 'text-white/85' : 'text-fg-3')}>
+                {active && icon}
+                {o.sub}
+              </span>
+            )}
+          </motion.button>
+        )
+      })}
+    </div>
+  )
+}
+
+const THEMES: Array<{ value: ThemePreference; label: string; icon: typeof Sun }> = [
+  { value: 'system', label: 'Auto', icon: Monitor },
+  { value: 'light', label: 'Light', icon: Sun },
+  { value: 'dark', label: 'Dark', icon: Moon },
+]
+
+/** Theme cards with a tiny preview of each look. */
+function ThemePicker({ value, onChange }: { value: ThemePreference; onChange: (t: ThemePreference) => void }) {
+  return (
+    <div>
+      <p className="mb-3 text-sm font-extrabold">Theme</p>
+      <div role="radiogroup" aria-label="Theme" className="grid grid-cols-3 gap-3">
+        {THEMES.map((t) => {
+          const active = value === t.value
+          return (
+            <motion.button
+              key={t.value}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              aria-label={t.label === 'Auto' ? 'System' : t.label}
+              whileHover={{ y: -3 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                if (!active) sfx.tap()
+                onChange(t.value)
+              }}
+              className={cn('card-3d relative flex flex-col gap-2 p-2.5 text-left transition-colors', active && 'border-accent')}
+            >
+              <span aria-hidden className={cn('flex h-16 overflow-hidden rounded-xl border-2 border-line', t.value === 'system' && 'bg-gradient-to-r from-white from-50% to-[#1b1729] to-50%', t.value === 'light' && 'bg-white', t.value === 'dark' && 'bg-[#1b1729]')}>
+                <span className="m-2 flex w-full flex-col gap-1.5">
+                  <span className="h-2 w-2/3 rounded-full bg-[#6d4aff]" />
+                  <span className="h-2 w-full rounded-full bg-[#d4d0e3] opacity-70" />
+                  <span className="h-2 w-1/2 rounded-full bg-[#ffb800]" />
+                </span>
+              </span>
+              <span className="flex items-center gap-1.5 text-sm font-extrabold">
+                <t.icon className="size-4" aria-hidden /> {t.label}
+              </span>
+              {active && (
+                <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-2 -right-2 grid size-6 place-items-center rounded-full bg-accent text-white shadow-md">
+                  <Check className="size-3.5" strokeWidth={4} aria-hidden />
+                </motion.span>
+              )}
+            </motion.button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function StudyTimePanel({ prefs, update }: { prefs: Preferences; update: (p: Partial<Preferences>) => void }) {
+  const a = prefs.availability
+  const total = a ? WEEKDAYS.reduce((s, d) => s + a[d], 0) : 0
+  const step = (d: Weekday, delta: number) => {
+    if (!a) return
+    sfx.tap()
+    update({ availability: { ...a, [d]: Math.max(0, Math.min(600, a[d] + delta)) } })
+  }
+  return (
+    <Panel id="availability" title="Study time" description="Tell CampusFlow how much time you have, so it can warn you about busy days." icon={CalendarClock} tone="green" bodyClassName="flex flex-col gap-4 px-5 pt-2 pb-5">
+      <Checkbox checked={!!a} onChange={(on) => update({ availability: on ? DEFAULT_AVAILABILITY : null })} label="Plan around my free time" description={a ? `${formatMinutes(total)} a week` : 'Off: busy days are flagged above a fixed amount of work'} />
+      {a ? (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+          {WEEKDAYS.map((d) => (
+            <div key={d} className="card-3d flex flex-col items-center gap-1.5 p-2.5">
+              <span className="text-xs font-black tracking-wider text-fg-3 uppercase">{DAY_LABEL[d]}</span>
+              <span className="tabular text-base font-black">{a[d] ? formatMinutes(a[d]) : 'Off'}</span>
+              <span className="flex gap-1">
+                <button type="button" onClick={() => step(d, -30)} disabled={a[d] === 0} aria-label={`Less time on ${DAY_LABEL[d]}`} className="btn-3d grid size-7 place-items-center rounded-lg bg-surface-2 text-fg-2 [--press:var(--line-strong)] disabled:opacity-40">
+                  <Minus className="size-3.5" strokeWidth={3} aria-hidden />
+                </button>
+                <button type="button" onClick={() => step(d, 30)} aria-label={`More time on ${DAY_LABEL[d]}`} className="btn-3d grid size-7 place-items-center rounded-lg bg-success-bright text-white [--press:var(--success-press)]">
+                  <Plus className="size-3.5" strokeWidth={3} aria-hidden />
+                </button>
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div>
+          <p className="mb-2 text-sm font-extrabold">Flag a day as busy above</p>
+          <ChoiceChips label="Busy day threshold" value={prefs.overloadThresholdMinutes} options={[180, 240, 300, 360, 480].map((m) => ({ value: m, label: `${m / 60}h`, sub: 'of work' }))} onChange={(m) => update({ overloadThresholdMinutes: m })} />
+        </div>
+      )}
     </Panel>
   )
 }
@@ -159,30 +275,39 @@ function CanvasPanel() {
   const disconnect = useDisconnect()
   const connected = prefs.dataMode === 'canvas'
   return (
-    <Panel title="Canvas" id="canvas" description="Read-only. CampusFlow never submits work, changes grades, or messages anyone.">
-      <div className="flex flex-col gap-4 px-4 py-4" data-testid="canvas-status">
+    <Panel id="canvas" title="Canvas" description="Read-only: never submits work, changes grades or messages anyone." icon={Plug} tone="accent" bodyClassName="flex flex-col gap-4 px-5 pt-2 pb-5">
+      <div data-testid="canvas-status" className="flex flex-col gap-3">
         {connected ? (
           <>
-            <p className="flex flex-wrap items-center gap-2 text-sm font-bold">
-              <Badge tone="success">Connected</Badge>
-              {prefs.canvasUser} · {prefs.canvasHost}
-            </p>
-            {prefs.lastCanvasSyncAt && <p className="text-xs text-fg-3">Last synced {format(new Date(prefs.lastCanvasSyncAt), 'MMM d, h:mm a')} · syncs automatically while CampusFlow is open</p>}
+            <div className="flex items-center gap-3 rounded-2xl bg-success-soft px-4 py-3">
+              <span className="relative flex size-3">
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-success-bright opacity-60" />
+                <span className="relative inline-flex size-3 rounded-full bg-success-bright" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-black text-success">Connected</span>
+                <span className="block truncate text-sm font-bold text-fg-2">
+                  {prefs.canvasUser} · {prefs.canvasHost}
+                </span>
+              </span>
+            </div>
+            {prefs.lastCanvasSyncAt && <p className="text-xs font-semibold text-fg-3">Last synced {format(new Date(prefs.lastCanvasSyncAt), 'MMM d, h:mm a')} · syncs automatically while CampusFlow is open</p>}
             <div className="flex flex-wrap gap-2">
-              <Button icon={RefreshCw} disabled={syncing} className={syncing ? '[&_svg]:animate-spin' : ''} onClick={() => void syncCanvas()}>
+              <Button variant="primary" icon={RefreshCw} disabled={syncing} className={syncing ? '[&_svg]:animate-spin' : ''} onClick={() => void syncCanvas()}>
                 {syncing ? 'Syncing…' : 'Sync now'}
               </Button>
-              <Button variant="ghost" onClick={() => void disconnect()}>
+              <Button variant="secondary" onClick={() => void disconnect()}>
                 Disconnect
               </Button>
             </div>
           </>
         ) : (
           <>
-            <p className="flex flex-wrap items-center gap-2 text-sm font-bold">
-              <Badge tone={prefs.dataMode === 'demo' ? 'accent' : 'neutral'}>{prefs.dataMode === 'demo' ? 'Demo mode — not connected' : 'Not connected'}</Badge>
-            </p>
-            <p className="text-sm text-fg-2">Connect once and your classes, assignments, due dates and grades come in automatically.</p>
+            <div className="flex items-center gap-3 rounded-2xl bg-surface-2 px-4 py-3">
+              <span className="size-3 rounded-full bg-line-strong" aria-hidden />
+              <span className="font-black text-fg-2">{prefs.dataMode === 'demo' ? 'Demo mode — not connected' : 'Not connected'}</span>
+            </div>
+            <p className="text-sm font-semibold text-fg-2">Connect once and your classes, assignments and grades come in by themselves.</p>
             <Button variant="primary" icon={Plug} className="self-start" onClick={() => navigate('/connect')}>
               Connect Canvas
             </Button>
@@ -203,32 +328,11 @@ function CanvasPanel() {
             Remove imported Canvas data
           </Button>
         )}
-        <p className="flex items-start gap-2 text-xs text-fg-3">
-          <ShieldCheck className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-          Your Canvas sign-in is kept on the CampusFlow server, encrypted, never in this browser. CampusFlow never asks for your Canvas password.
-        </p>
       </div>
-    </Panel>
-  )
-}
-
-function AssistantPanel() {
-  const prefs = useStore((s) => s.prefs)
-  const update = useStore((s) => s.updatePrefs)
-  return (
-    <Panel title="Planning assistant" id="assistant">
-      <div className="flex flex-col gap-3 px-4 py-4 text-sm">
-        <p className="flex items-center gap-2">
-          <Sparkles className="size-4 text-fg-3" aria-hidden />
-          <span className="font-medium">Rule-based templates</span>
-          <Badge>Active</Badge>
-          <Badge tone="outline">AI not configured</Badge>
-        </p>
-        <p className="text-xs text-fg-2">
-          “Break into steps” and “What to work on next” use transparent rules that run in your browser. No AI service is connected, and nothing about your coursework leaves this device. An AI-backed assistant can be added later through the planning assistant interface (see README).
-        </p>
-        <Checkbox checked={prefs.aiConsent} onChange={(v) => update({ aiConsent: v })} label="If an AI assistant is enabled in the future, I allow sending assignment text I choose to it." />
-      </div>
+      <p className="flex items-start gap-2 text-xs font-semibold text-fg-3">
+        <ShieldCheck className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+        Your Canvas token is kept on the CampusFlow server, encrypted, never in this browser. CampusFlow never asks for your Canvas password.
+      </p>
     </Panel>
   )
 }
@@ -238,14 +342,14 @@ function DataPanel() {
   const resetDemo = useStore((s) => s.resetDemoData)
   const startEmpty = useStore((s) => s.startEmpty)
   const exportData = () => {
-    const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), app: 'CampusFlow', version: 1, data: selectData(state), prefs: state.prefs }, null, 2)], { type: 'application/json' })
+    const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), app: 'CampusFlow', version: 2, data: selectData(state), prefs: state.prefs }, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `campusflow-export-${format(new Date(), 'yyyy-MM-dd')}.json`
+    a.download = `campusflow-backup-${format(new Date(), 'yyyy-MM-dd')}.json`
     a.click()
     setTimeout(() => URL.revokeObjectURL(url), 2000)
-    toast('Export downloaded')
+    toast('Backup downloaded')
   }
   let bytes = 0
   try {
@@ -254,19 +358,24 @@ function DataPanel() {
     /* unavailable */
   }
   return (
-    <Panel title="Data & storage" id="data">
-      <div className="flex flex-col gap-4 px-4 py-4 text-sm">
-        <p className="text-xs text-fg-2">
-          Everything is stored locally in this browser ({(bytes / 1024).toFixed(0)} KB). It is not synced between devices and is lost if you clear site data, so export a backup now and then. Attached files are stored in this browser’s IndexedDB.
-        </p>
+    <Panel id="data" title="Your data" description={`Saved in this browser (${Math.max(1, Math.round(bytes / 1024))} KB). Not synced between devices.`} icon={Database} tone="slate" bodyClassName="flex flex-col gap-4 px-5 pt-2 pb-5">
+      <div className="flex flex-wrap gap-2">
+        <Button variant="secondary" icon={Download} onClick={exportData}>
+          Download a backup
+        </Button>
+        <Link to="/me" className="btn-3d inline-flex h-10 items-center gap-2 rounded-xl border-2 border-line bg-surface px-4 text-sm font-extrabold [--press:var(--line)]">
+          See your stats
+        </Link>
+      </div>
+      <div className="rounded-2xl border-2 border-dashed border-danger/40 p-4">
+        <p className="text-sm font-black text-danger">Danger zone</p>
+        <p className="mb-3 text-xs font-semibold text-fg-3">These can’t be undone. Download a backup first if you want to keep anything.</p>
         <div className="flex flex-wrap gap-2">
-          <Button icon={Download} onClick={exportData}>
-            Export JSON backup
-          </Button>
           <Button
+            variant="secondary"
             icon={RotateCcw}
             onClick={async () => {
-              if (await confirm({ title: 'Load fresh demo data?', message: 'This replaces everything in CampusFlow with the sample semester. Export first if you want to keep your data.', confirmLabel: 'Load demo data' })) {
+              if (await confirm({ title: 'Load fresh demo data?', message: 'This replaces everything in CampusFlow with the sample semester.', confirmLabel: 'Load demo data' })) {
                 resetDemo()
                 toast('Demo data loaded')
               }
@@ -275,13 +384,12 @@ function DataPanel() {
             {state.prefs.dataMode === 'demo' ? 'Reset demo data' : 'Load demo data'}
           </Button>
           <Button
-            variant="ghost"
+            variant="danger"
             icon={Trash2}
-            className="text-danger hover:text-danger"
             onClick={async () => {
-              if (await confirm({ title: 'Start with an empty workspace?', message: 'All courses, assignments, tasks, notes and grades in this browser will be deleted. Preferences are kept.', confirmLabel: 'Delete everything' })) {
+              if (await confirm({ title: 'Start with an empty workspace?', message: 'All classes, assignments, tasks, grades and XP in this browser will be deleted. Settings are kept.', confirmLabel: 'Delete everything' })) {
                 startEmpty()
-                toast('Workspace cleared — add your first course to begin')
+                toast('Workspace cleared — add your first class to begin')
               }
             }}
           >
