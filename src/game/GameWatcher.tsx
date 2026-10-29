@@ -1,6 +1,9 @@
 import { useEffect } from 'react'
 import { completionsOn, levelFor, qualifyingBadges, QUEST_BONUS, streak, totalXp } from '@/domain/game'
 import { toLocalDay } from '@/domain/dates'
+import { isAssignmentDone } from '@/domain/assignments'
+import { lateOpen, RESCUE_BONUS, RESCUE_MIN_LATE, rescueOrder } from '@/domain/rescue'
+import { useNow } from '@/hooks/useNow'
 import { useStore } from '@/store/appStore'
 import { useCelebrations } from './celebrations'
 
@@ -13,6 +16,38 @@ export function GameWatcher() {
   const events = useStore((s) => s.xpEvents)
   const goal = useStore((s) => s.prefs.dailyGoal)
   const badges = useStore((s) => s.badges)
+  const assignments = useStore((s) => s.assignments)
+  const rescue = useStore((s) => s.prefs.rescue)
+  const now = useNow(60_000)
+
+  // Rescue plan: starts when enough work is late, takes in work that becomes late later,
+  // and pays its bonus once everything in it is done.
+  useEffect(() => {
+    const st = useStore.getState()
+    const late = lateOpen(assignments, now)
+    if (!rescue) {
+      if (late.length >= RESCUE_MIN_LATE) st.updatePrefs({ rescue: { ids: rescueOrder(late), startedAt: now.toISOString() } })
+      return
+    }
+    const inPlan = assignments.filter((a) => rescue.ids.includes(a.id))
+    const added = late.filter((a) => !rescue.ids.includes(a.id))
+    if (added.length) {
+      st.updatePrefs({ rescue: { ...rescue, ids: [...rescue.ids, ...rescueOrder(added)] } })
+      return
+    }
+    if (inPlan.length === 0) {
+      st.updatePrefs({ rescue: null })
+      return
+    }
+    if (inPlan.every(isAssignmentDone)) {
+      st.updatePrefs({ rescue: null })
+      const id = `rescue_${rescue.startedAt}`
+      if (!st.xpEvents.some((e) => e.id === id)) {
+        st.addXpEvent({ id, at: new Date().toISOString(), amount: RESCUE_BONUS, kind: 'rescue', refId: id })
+        useCelebrations.getState().push({ kind: 'rescue', bonus: RESCUE_BONUS })
+      }
+    }
+  }, [assignments, rescue, now])
 
   useEffect(() => {
     const st = useStore.getState()

@@ -4,6 +4,7 @@ import { recommendNext } from '@/domain/recommend'
 import { useCourseMap } from '@/hooks/useData'
 import { useStore } from '@/store/appStore'
 import { toast, useUi } from '@/store/ui'
+import { sfx } from '@/game/fx'
 import { CourseTag } from '../course'
 import { Button } from '../ui/Button'
 import { Dialog } from '../ui/Dialog'
@@ -32,10 +33,16 @@ export function FocusWatcher() {
   const remaining = useRemaining()
   const focus = useStore((s) => s.focus)
   const finish = useStore((s) => s.finishFocus)
+  const startedAt = focus?.startedAt
+  const fresh = !!startedAt && Date.now() - new Date(startedAt).getTime() < 2000
+  useEffect(() => {
+    if (fresh) sfx.focusStart()
+  }, [startedAt, fresh])
   useEffect(() => {
     if (focus && remaining === 0) {
       finish(true)
-      toast(`Focus session complete: ${focus.title}. Logged to your calendar.`, 'success')
+      sfx.focusDone()
+      toast(`Focus session complete: ${focus.title}`, 'success')
     }
   }, [remaining, focus, finish])
   return null
@@ -125,7 +132,7 @@ export function FocusDialog() {
               onClick={() => {
                 finish(true)
                 setOpen(false)
-                toast('Focus session logged to your calendar')
+                toast('Focus session saved')
               }}
             >
               End &amp; log
@@ -156,7 +163,7 @@ export function FocusDialog() {
             <p className="font-medium">{focus.title}</p>
             {course && <CourseTag course={course} className="mt-1 justify-center" />}
           </div>
-          <p className="text-xs text-fg-3">When the timer ends, the session is logged to your calendar automatically.</p>
+          <p className="text-xs text-fg-3">Every focused minute earns 1 XP.</p>
         </div>
       ) : (
         <div className="flex flex-col gap-4">

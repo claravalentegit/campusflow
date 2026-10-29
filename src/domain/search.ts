@@ -32,9 +32,9 @@ export function searchAll(data: AppData, rawQuery: string, limitPerCategory = 6)
     if (score > 0) results.push({ ...r, score })
   }
   for (const c of data.courses)
-    push({ category: 'course', id: c.id, title: c.name, subtitle: [c.code, c.instructor].filter(Boolean).join(' · '), courseId: c.id, href: `/courses/${c.id}` }, [c.code, c.instructor ?? '', c.description])
+    push({ category: 'course', id: c.id, title: c.name, subtitle: [c.code, c.instructor].filter(Boolean).join(' · '), courseId: c.id, href: '/courses' }, [c.code, c.instructor ?? '', c.description])
   for (const a of data.assignments)
-    push({ category: 'assignment', id: a.id, title: a.title, subtitle: courseName.get(a.courseId) ?? '', courseId: a.courseId, href: `/assignments/${a.id}` }, [a.description, a.personalNotes])
+    push({ category: 'assignment', id: a.id, title: a.title, subtitle: courseName.get(a.courseId) ?? '', courseId: a.courseId, href: `/?open=${a.id}` }, [a.description, a.personalNotes])
   for (const t of data.tasks)
     push(
       {
@@ -43,7 +43,7 @@ export function searchAll(data: AppData, rawQuery: string, limitPerCategory = 6)
         title: t.title,
         subtitle: t.courseId ? (courseName.get(t.courseId) ?? '') : 'Study task',
         courseId: t.courseId,
-        href: t.assignmentId ? `/assignments/${t.assignmentId}` : `#task:${t.id}`,
+        href: t.assignmentId ? `/?open=${t.assignmentId}` : `#task:${t.id}`,
       },
       [],
     )

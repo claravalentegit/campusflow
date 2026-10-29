@@ -324,6 +324,10 @@ export interface Preferences {
   canvasConnectedAt: ISODateTime | null
   canvasUser: string | null
   canvasHost: string | null
+  /** The study pet the student picked. null until they pick one. */
+  pet: { species: 'cat' | 'dragon' | 'bunny' | 'fox' | 'axolotl'; name: string } | null
+  /** The active Rescue plan: late assignments in their fixed order. */
+  rescue: { ids: ID[]; startedAt: ISODateTime } | null
 }
 
 export interface AppData {

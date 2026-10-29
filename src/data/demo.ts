@@ -319,6 +319,17 @@ export function buildDemoData(now: Date = new Date()): AppData {
       status: 'in_progress',
     }),
     assignment({
+      id: 'asg_biol_reading11',
+      courseId: 'crs_biol150',
+      title: 'Reading Check: Chapter 11',
+      type: 'quiz',
+      dueAt: at(-2, '23:59'),
+      priority: 'medium',
+      estimatedMinutes: 20,
+      pointsPossible: 10,
+      description: '10-question check on chapter 11 (gene expression). Open until Friday for late credit.',
+    }),
+    assignment({
       id: 'asg_math_ps6',
       courseId: 'crs_math241',
       title: 'Problem Set 6: Chain Rule',

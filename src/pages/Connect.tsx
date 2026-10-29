@@ -80,7 +80,6 @@ export function Connect() {
     setError(null)
     setDir(d)
     setCard(next)
-    if (d === 1) sfx.tap()
   }
   const index = STEPS.indexOf(card as Step)
   const back = () => index > 0 && go(STEPS[index - 1], -1)
@@ -227,7 +226,6 @@ export function Connect() {
                   href={`https://${host}/profile/settings`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={() => sfx.tap()}
                   className="btn-3d flex items-center justify-center gap-2 rounded-2xl border-2 border-line bg-surface px-4 py-3.5 text-base font-black text-accent-text [--press:var(--line)]"
                 >
                   Open Canvas settings <ExternalLink className="size-4" aria-hidden />

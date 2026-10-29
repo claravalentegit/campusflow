@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react'
+import { sfx } from '@/game/fx'
 import { X } from 'lucide-react'
 import { create } from 'zustand'
 import { Button, IconButton } from './Button'
@@ -27,6 +28,7 @@ export function Dialog({ open, onClose, title, description, children, footer, si
     if (!el) return
     if (open && !el.open) {
       el.showModal()
+      sfx.whoosh()
       const target = initialFocusSelector ? el.querySelector<HTMLElement>(initialFocusSelector) : el.querySelector<HTMLElement>('[data-autofocus], input:not([type=hidden]), textarea, select')
       target?.focus()
     } else if (!open && el.open) el.close()

@@ -12,7 +12,7 @@ export function NotFound({ what = 'page' }: { what?: string }) {
         title={`This ${what} doesn’t exist`}
         description={what === 'page' ? 'The link may be mistyped.' : `It may have been deleted, or the link is from another device. CampusFlow data is stored in this browser only.`}
         actions={
-          <Link to="/" className="inline-flex h-8.5 items-center rounded-md border border-line bg-surface px-3 text-sm font-medium shadow-sm hover:bg-surface-2">
+          <Link to="/" className="btn-3d inline-flex h-11 items-center rounded-xl bg-accent px-5 text-sm font-black text-white [--press:var(--accent-press)]">
             Back to Today
           </Link>
         }

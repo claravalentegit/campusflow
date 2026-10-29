@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import {
   ArrowRight,
   BookOpen,
-  CalendarDays,
-  CalendarPlus,
   CheckSquare,
   GraduationCap,
   LayoutDashboard,
@@ -63,14 +61,12 @@ export function CommandPalette() {
     () => [
       { id: 'add-assignment', label: 'Add assignment', icon: Plus, hint: 'C', keywords: 'new create homework', run: () => openQuickAdd({ kind: 'assignment' }) },
       { id: 'add-task', label: 'Add task', icon: ListTodo, keywords: 'new todo', run: () => openQuickAdd({ kind: 'task' }) },
-      { id: 'add-session', label: 'Schedule study time', icon: CalendarPlus, keywords: 'new block plan session', run: () => openQuickAdd({ kind: 'session' }) },
       { id: 'focus', label: 'Start a focus session', icon: Timer, hint: 'F', keywords: 'pomodoro timer xp', run: () => setFocusDialogOpen(true) },
       { id: 'nav-today', label: 'Go to Today', icon: LayoutDashboard, keywords: 'home quest', run: go('/') },
       { id: 'nav-courses', label: 'Go to Courses', icon: BookOpen, keywords: 'classes', run: go('/courses') },
-      { id: 'nav-calendar', label: 'Open calendar', icon: CalendarDays, keywords: 'week', run: go('/calendar') },
       { id: 'nav-me', label: 'My level & badges', icon: Trophy, keywords: 'xp profile streak', run: go('/me') },
-      { id: 'nav-grades', label: 'Grades', icon: GraduationCap, run: go('/grades') },
-      { id: 'nav-settings', label: 'Settings & Canvas connection', icon: Settings, run: go('/settings') },
+      { id: 'nav-grades', label: 'Grades', icon: GraduationCap, keywords: 'courses', run: go('/courses') },
+      { id: 'nav-settings', label: 'Settings & Canvas connection', icon: Settings, run: go('/me#settings') },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],

@@ -2,9 +2,6 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/appStore'
 import { useUi, type QuickAddKind } from '@/store/ui'
 import { AssignmentForm } from '../forms/AssignmentForm'
-import { EventForm } from '../forms/EventForm'
-import { ReminderForm } from '../forms/ReminderForm'
-import { SessionForm } from '../forms/SessionForm'
 import { TaskForm } from '../forms/TaskForm'
 import { CourseForm } from '../forms/CourseForm'
 import { Button } from '../ui/Button'
@@ -13,10 +10,7 @@ import { Segmented } from '../ui/Segmented'
 
 const KINDS: Array<{ value: QuickAddKind | 'course'; label: string }> = [
   { value: 'assignment', label: 'Assignment' },
-  { value: 'task', label: 'Task' },
-  { value: 'session', label: 'Study time' },
-  { value: 'reminder', label: 'Reminder' },
-  { value: 'event', label: 'Event' },
+  { value: 'task', label: 'To-do' },
 ]
 
 export function QuickAddDialog() {
@@ -59,12 +53,9 @@ export function QuickAddDialog() {
                 <CourseForm formId="quick-course" onDone={(c) => open({ kind: 'assignment', courseId: c.id })} />
               </div>
             ) : (
-              <AssignmentForm key={formId} formId={formId} preset={preset} onDone={(a) => { close(); if (window.location.pathname === `/assignments/${a.id}`) return; useUi.getState().toast(`Added “${a.title}”`, 'success', { label: 'Open', run: () => navigate(`/assignments/${a.id}`) }) }} />
+              <AssignmentForm key={formId} formId={formId} preset={preset} onDone={(a) => { close(); useUi.getState().toast(`Added “${a.title}”`, 'success', { label: 'Open', run: () => navigate(`/?open=${a.id}`) }) }} />
             ))}
           {kind === 'task' && <TaskForm formId={formId} preset={preset} onDone={close} />}
-          {kind === 'session' && <SessionForm formId={formId} preset={preset} onDone={close} />}
-          {kind === 'reminder' && <ReminderForm formId={formId} preset={preset} onDone={close} />}
-          {kind === 'event' && <EventForm formId={formId} preset={preset} onDone={close} />}
         </div>
       )}
     </Dialog>

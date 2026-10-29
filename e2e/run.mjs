@@ -105,6 +105,18 @@ async function connectThroughCards(page, address, token) {
   await page.getByRole('button', { name: 'Connect' }).click()
 }
 
+const quest = (page, id) => page.locator(`[id="quest-a:${id}"]`)
+const openQuest = async (page, id) => {
+  await quest(page, id).locator('button[aria-expanded]').click()
+  return quest(page, id).getByTestId('quest-details')
+}
+const pickPet = async (page, kind = 'Fox', name = 'Zippy') => {
+  await page.getByRole('radio', { name: kind }).click()
+  await page.getByPlaceholder(/Ember|Mochi|Puff|Sunny|Bubbles/).fill(name)
+  await page.getByRole('button', { name: `Choose ${name}` }).click()
+  await page.getByTestId('pet-mood').waitFor()
+}
+
 const xp = async (page) => Number((await page.locator('#xp-target').innerText()).replace(/[^\d]/g, ''))
 const ready = (page) => page.getByTestId('day-summary').waitFor()
 const keepGoing = async (page) => {
@@ -114,16 +126,19 @@ const keepGoing = async (page) => {
   await page.waitForTimeout(400)
 }
 
-await test('1. Add a class and open its page', async (page) => {
+await test('1. Add a class; it opens in place on Courses and persists', async (page) => {
   await page.goto(`${BASE}/courses`)
   await page.getByRole('button', { name: 'Add class' }).first().click()
   await dialog(page).getByLabel('Course name').fill('Organic Chemistry')
   await dialog(page).getByLabel('Code', { exact: true }).fill('CHEM 232')
   await dialog(page).getByRole('button', { name: 'Add class' }).click()
-  await page.waitForURL(/\/courses\/crs_/)
-  await page.getByRole('heading', { level: 1, name: 'Organic Chemistry' }).waitFor()
+  const card = page.getByTestId('course-card').filter({ hasText: 'Organic Chemistry' })
+  await card.getByTestId('course-details').getByText('No grades yet').waitFor()
+  assert(page.url().endsWith('/courses'), `left the Courses tab: ${page.url()}`)
   await page.reload()
-  await page.getByRole('heading', { level: 1, name: 'Organic Chemistry' }).waitFor()
+  await card.waitFor()
+  await card.locator('button[aria-expanded]').click()
+  await card.getByText('CHEM 232').waitFor()
 })
 
 await test('2–3, 9. Create an assignment with a due date, edit it, and it persists after reload', async (page) => {
@@ -137,13 +152,14 @@ await test('2–3, 9. Create an assignment with a due date, edit it, and it pers
   await d.getByLabel('Due time').fill('17:00')
   await d.getByRole('button', { name: 'Save' }).click()
   await page.getByRole('button', { name: 'Open' }).last().click()
-  await page.waitForURL(/\/assignments\/asg_/)
-  await page.getByText('5:00 PM').first().waitFor()
-  await page.getByRole('button', { name: 'Edit details' }).click()
+  const details = page.getByTestId('quest-details')
+  await details.getByText(/Due .* 5:00 PM/).waitFor()
+  await details.getByRole('button', { name: 'Edit details' }).click()
   await dialog(page).getByLabel('Title').fill('Enzyme mechanisms worksheet')
   await dialog(page).getByRole('button', { name: 'Save changes' }).click()
   await page.reload()
-  await page.getByRole('heading', { level: 1, name: 'Enzyme mechanisms worksheet' }).waitFor()
+  await ready(page)
+  await page.getByText('Enzyme mechanisms worksheet').waitFor()
 })
 
 await test('4, 9. Completing earns XP, updates counts, survives reload, and Undo takes the XP back', async (page) => {
@@ -159,15 +175,19 @@ await test('4, 9. Completing earns XP, updates counts, survives reload, and Undo
   await page.reload()
   await ready(page)
   assert((await xp(page)) === before + 10, 'XP did not persist')
-  await page.goto(`${BASE}/assignments/asg_psyc_quiz7`)
-  await page.getByRole('button', { name: 'Reopen' }).click()
+  await page.getByRole('button', { name: /done today/ }).click()
+  await page.getByRole('checkbox', { name: 'Undo Quiz 7: Working Memory' }).click()
   await page.waitForFunction((b) => Number(document.getElementById('xp-target')?.innerText.replace(/[^\d]/g, '')) === b, before, { timeout: 5000 })
 })
 
 await test('11. Personal completion is never shown as a Canvas submission', async (page) => {
-  await page.goto(`${BASE}/assignments/asg_psyc_quiz7`)
-  await page.getByRole('button', { name: /Complete · \+/ }).click()
-  const text = await page.getByTestId('submission-notice').textContent()
+  await page.goto(`${BASE}/`)
+  await ready(page)
+  await page.getByRole('checkbox', { name: 'Complete Quiz 7: Working Memory' }).click()
+  await page.waitForTimeout(1200)
+  await page.getByRole('button', { name: /done today/ }).click()
+  const details = await openQuest(page, 'asg_psyc_quiz7')
+  const text = await details.getByTestId('submission-notice').textContent()
   assert(text.includes('does not submit anything to Canvas'), 'missing personal-vs-Canvas notice')
   assert(text.includes('Unknown — not synced with Canvas'), 'Canvas state should be unknown')
   assert(!/Submitted on Canvas/.test(text), 'falsely claims a Canvas submission')
@@ -176,6 +196,7 @@ await test('11. Personal completion is never shown as a Canvas submission', asyn
 await test('Daily quest: 3 completions make a gold day, celebrate, and extend the streak', async (page) => {
   await page.goto(`${BASE}/`)
   await ready(page)
+  await pickPet(page)
   for (const name of ['Complete Create an outline and thesis', 'Complete Email Prof. Reyes about midterm room conflict', 'Complete Make flashcards for chapters 6–7']) {
     await page.getByRole('checkbox', { name }).click()
     await page.waitForTimeout(250)
@@ -198,33 +219,69 @@ await test('Level up: defeating a boss levels you up with a celebration', async 
   await page.getByRole('heading', { name: 'Boss Slayer' }).waitFor()
 })
 
-await test('6. Boss stages: suggest, clear and add stages', async (page) => {
-  await page.goto(`${BASE}/assignments/asg_math_mid2`)
-  await page.getByText('BOSS LEVEL', { exact: false }).first().waitFor()
-  await page.getByRole('button', { name: 'Suggest stages' }).first().click()
+await test('6. Boss stages: open in place, suggest, clear and add stages', async (page) => {
+  await page.goto(`${BASE}/`)
+  await ready(page)
+  await quest(page, 'asg_math_mid2').getByText('Boss level').waitFor()
+  const details = await openQuest(page, 'asg_math_mid2')
+  await details.getByRole('button', { name: 'Suggest stages' }).click()
   const d = dialog(page)
   await d.getByLabel('Step 1 title').fill('Collect exam topics from the review sheet')
   await d.getByRole('button', { name: 'Save steps' }).click()
-  await page.getByRole('button', { name: 'Collect exam topics from the review sheet', exact: true }).waitFor()
-  await page.getByRole('button', { name: /^Clear stage 1/ }).click()
-  await page.getByText('1 / 5 stages').waitFor()
-  await page.getByLabel('New stage').fill('Make a formula note card')
+  await details.getByText('Collect exam topics from the review sheet', { exact: true }).waitFor()
+  await details.getByRole('checkbox', { name: /^Clear stage 1/ }).click()
+  await details.getByText('Stages · 1 / 5').waitFor()
+  await details.getByLabel('New stage').fill('Make a formula note card')
   await page.keyboard.press('Enter')
-  await page.getByText('1 / 6 stages').waitFor()
+  await details.getByText('Stages · 1 / 6').waitFor()
+  assert(page.url() === `${BASE}/`, `navigated away: ${page.url()}`)
 })
 
-await test('7. Add study time and see it on the calendar', async (page) => {
-  await page.goto(`${BASE}/calendar?date=${isoDay(2)}`)
-  await page.getByRole('heading', { level: 1 }).waitFor()
-  await page.keyboard.press('c')
-  const d = dialog(page)
-  await d.getByRole('radio', { name: 'Study time' }).click()
-  await d.getByLabel('What will you study?').fill('Organic chem flashcards')
-  await d.getByLabel('Date').fill(isoDay(2))
-  await d.getByLabel('Start').fill('14:00')
-  await d.getByLabel('End').fill('15:30')
-  await d.getByRole('button', { name: 'Save' }).click()
-  await page.getByRole('button', { name: /Organic chem flashcards/ }).waitFor()
+await test('Pet: pick and name a pet; its mood follows late work', async (page) => {
+  await page.goto(`${BASE}/`)
+  await ready(page)
+  await page.getByText('Pick your study pet!').waitFor()
+  await pickPet(page, 'Axolotl', 'Bubbles Jr')
+  await page.getByTestId('pet-mood').getByText('Bubbles Jr is worried').waitFor()
+  await page.getByRole('checkbox', { name: 'Complete Reading Check: Chapter 11' }).click()
+  await page.getByTestId('pet-mood').getByText('Bubbles Jr is okay').waitFor()
+  await page.reload()
+  await page.getByTestId('pet-mood').getByText('Bubbles Jr is okay').waitFor()
+  await page.goto(`${BASE}/me`)
+  await page.getByRole('button', { name: 'Bubbles Jr, your pet. Tap to say hi.' }).waitFor()
+})
+
+await test('Rescue plan: appears for 2+ late, smallest first, and pays a bonus when done', async (page) => {
+  await page.goto(`${BASE}/`)
+  await ready(page)
+  const rescue = page.getByRole('region', { name: /Rescue plan/ })
+  const steps = await rescue.locator('li').allInnerTexts()
+  assert(steps.length === 2 && steps[0].includes('Reading Check') && steps[1].includes('Problem Set 7'), `wrong order: ${steps}`)
+  await rescue.getByText(/Made by simple rules, not AI/).waitFor()
+  const before = await xp(page)
+  await rescue.getByRole('checkbox', { name: 'Complete Reading Check: Chapter 11' }).click()
+  await rescue.getByText('1/2').waitFor()
+  await page.getByRole('heading', { name: 'Comeback Kid' }).waitFor() // first late work finished
+  await keepGoing(page)
+  await rescue.getByRole('checkbox', { name: 'Complete Problem Set 7: Lagrange Multipliers' }).click()
+  for (let i = 0; i < 4 && !(await page.getByRole('heading', { name: 'Rescue complete!' }).count()); i++) await keepGoing(page)
+  await page.getByRole('heading', { name: 'Rescue complete!' }).waitFor()
+  await keepGoing(page)
+  await page.waitForTimeout(800)
+  await page.waitForFunction((b) => Number(document.getElementById('xp-target')?.innerText.replace(/[^\d]/g, '')) === b + 5 + 20 + 50, before, { timeout: 5000 })
+  assert(!(await rescue.count()), 'rescue plan still shown')
+})
+
+await test('Old links land on the matching tab', async (page) => {
+  await page.goto(`${BASE}/calendar`)
+  await ready(page)
+  await page.goto(`${BASE}/assignments/asg_cs_mp4`)
+  await quest(page, 'asg_cs_mp4').getByTestId('quest-details').waitFor()
+  await page.goto(`${BASE}/settings#canvas`)
+  await page.waitForURL(/\/me#canvas/)
+  await page.getByTestId('canvas-status').waitFor()
+  await page.goto(`${BASE}/grades`)
+  await page.waitForURL(/\/courses$/)
 })
 
 await test('8. Search finds an assignment (Ctrl+K)', async (page) => {
@@ -234,13 +291,13 @@ await test('8. Search finds an assignment (Ctrl+K)', async (page) => {
   await page.getByRole('combobox', { name: 'Search' }).fill('flood')
   await page.getByRole('option', { name: /MP4: Flood Fill/ }).waitFor()
   await page.keyboard.press('Enter')
-  await page.waitForURL(/\/assignments\/asg_cs_mp4/)
+  await quest(page, 'asg_cs_mp4').getByTestId('quest-details').waitFor()
 })
 
 await test('10. Late work is identified correctly', async (page) => {
   await page.goto(`${BASE}/`)
   await ready(page)
-  const late = page.getByRole('region', { name: /^Late ·/ })
+  const late = page.getByRole('region', { name: /Rescue plan/ })
   await late.getByText('Problem Set 7: Lagrange Multipliers').waitFor()
   const text = await late.innerText()
   assert(!/Quiz 7|Midterm|MP4/.test(text), `future work listed as late: ${text}`)
@@ -261,9 +318,10 @@ await test('12a. Phone: tabs, quick add with validation, no sideways scroll', as
 }, { width: 390, height: 844 })
 
 await test('12b. Phone pages have no horizontal overflow', async (page) => {
-  for (const path of ['/', '/courses', '/courses/crs_engl102', '/assignments/asg_engl_paper', '/calendar', '/me', '/grades', '/settings']) {
+  for (const path of ['/', '/?open=asg_engl_paper', '/courses', '/me']) {
     await page.goto(`${BASE}${path}`)
     await page.waitForTimeout(600)
+    if (path === '/courses') await page.getByTestId('course-card').first().locator('button[aria-expanded]').click()
     const w = await page.evaluate(() => document.documentElement.scrollWidth)
     assert(w <= 390, `${path} overflows: ${w}px`)
   }
@@ -277,8 +335,8 @@ await test('13. Empty workspace starts at level 1 with a clear first step', asyn
   await page.getByText('Level 1. Let’s go!').waitFor()
   await page.goto(`${BASE}/courses`)
   await page.getByText('No classes yet').waitFor()
-  await page.goto(`${BASE}/assignments/does-not-exist`)
-  await page.getByText('This assignment doesn’t exist').waitFor()
+  await page.goto(`${BASE}/does-not-exist`)
+  await page.getByText('This page doesn’t exist').waitFor()
 })
 
 await test('14. Demo mode is never presented as a Canvas connection', async (page) => {
@@ -363,8 +421,10 @@ await test('First launch opens on the sign-in screen, and the choice is remember
 }, undefined, { fresh: true })
 
 await test('15. Single-key shortcuts do not fire while typing', async (page) => {
-  await page.goto(`${BASE}/assignments/asg_engl_paper`)
-  await page.getByLabel('New stage').fill('calc')
+  await page.goto(`${BASE}/`)
+  await ready(page)
+  const details = await openQuest(page, 'asg_engl_paper')
+  await details.getByLabel('New stage').fill('calc')
   assert(!(await dialog(page).count()), 'typing "c" opened quick add')
   await page.locator('h1').click()
   await page.keyboard.press('c')

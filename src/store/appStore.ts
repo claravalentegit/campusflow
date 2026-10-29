@@ -46,6 +46,8 @@ export const DEFAULT_PREFS: Preferences = {
   canvasConnectedAt: null,
   canvasUser: null,
   canvasHost: null,
+  pet: null,
+  rescue: null,
 }
 
 function freshDemo(prefs: Preferences) {

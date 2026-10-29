@@ -1,7 +1,10 @@
 import { useEffect, useRef } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { Flame, Sparkles } from 'lucide-react'
+import { Flame, LifeBuoy, Sparkles } from 'lucide-react'
 import { badgeDef, levelTitle } from '@/domain/game'
+import { petStage } from '@/domain/pet'
+import { useStore } from '@/store/appStore'
+import { PetArt } from '@/components/game/Pet'
 import { AnimatedNumber, BadgeIcon, LevelBadge } from '@/components/game/GameUI'
 import { Button } from '@/components/ui/Button'
 import { cannons, haptic, sfx, starShower, burst } from './fx'
@@ -21,6 +24,11 @@ export function Celebrations() {
       sfx.quest()
       haptic([30, 50, 30, 50, 80])
       setTimeout(cannons, 250)
+    } else if (current.kind === 'rescue') {
+      sfx.quest()
+      haptic([30, 50, 30, 50, 80])
+      setTimeout(cannons, 250)
+      setTimeout(starShower, 600)
     } else if (current.kind === 'level') {
       sfx.levelUp()
       haptic([40, 60, 40, 60, 120])
@@ -94,6 +102,11 @@ function Hero({ c }: { c: Celebration }) {
         transition={{ type: 'spring', stiffness: 220, damping: 12, delay: 0.1 }}
       >
         {c.kind === 'level' && <LevelBadge level={c.level} size="xl" className="shadow-[0_0_0_10px_var(--surface)]" />}
+        {c.kind === 'rescue' && (
+          <span className="btn-3d grid size-32 place-items-center rounded-[40px] bg-success-bright text-white shadow-[0_0_0_10px_var(--surface)] [--press:var(--success-press)]">
+            <LifeBuoy className="size-16" aria-hidden />
+          </span>
+        )}
         {c.kind === 'quest' && (
           <span className="btn-3d grid size-32 place-items-center rounded-[40px] bg-fire text-white shadow-[0_0_0_10px_var(--surface)] [--press:#d9480f]">
             <Flame className="flicker size-16 fill-white" aria-hidden />
@@ -110,6 +123,8 @@ function Hero({ c }: { c: Celebration }) {
 }
 
 function Body({ c }: { c: Celebration }) {
+  const pet = useStore((s) => s.prefs.pet)
+  const grew = c.kind === 'level' && petStage(c.level).stage !== petStage(c.level - 1).stage ? petStage(c.level).stage : null
   const pop = { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 } }
   if (c.kind === 'quest')
     return (
@@ -130,6 +145,22 @@ function Body({ c }: { c: Celebration }) {
         </div>
       </>
     )
+  if (c.kind === 'rescue')
+    return (
+      <>
+        <motion.h2 id="celebration-title" {...pop} transition={{ delay: 0.25 }} className="mt-14 text-3xl font-black text-success">
+          Rescue complete!
+        </motion.h2>
+        <motion.p {...pop} transition={{ delay: 0.35 }} className="mt-1 text-base font-bold text-fg-2">
+          You caught up on all your late work. Your pet is so proud.
+        </motion.p>
+        <div className="mt-5 grid grid-cols-1 gap-3">
+          <Stat delay={0.45} label="rescue bonus XP" tone="text-gold-text">
+            +<AnimatedNumber value={c.bonus} />
+          </Stat>
+        </div>
+      </>
+    )
   if (c.kind === 'level')
     return (
       <>
@@ -139,9 +170,18 @@ function Body({ c }: { c: Celebration }) {
         <motion.p {...pop} transition={{ delay: 0.45 }} className="mt-1 text-base font-bold text-fg-2">
           You’re now level {c.level}: <span className="font-black text-fg">{levelTitle(c.level)}</span>
         </motion.p>
-        <motion.p {...pop} transition={{ delay: 0.6 }} className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-gold-soft px-3 py-1 text-sm font-black text-gold-text">
-          <Sparkles className="size-4" aria-hidden /> New title unlocked
-        </motion.p>
+        {pet && grew ? (
+          <motion.div {...pop} transition={{ delay: 0.6 }} className="mt-4 flex items-center justify-center gap-3 rounded-2xl bg-success-soft px-3 py-2">
+            <PetArt species={pet.species} stage={grew} size={56} />
+            <span className="text-sm font-black text-success">
+              {pet.name} grew into a {petStage(c.level).label}!
+            </span>
+          </motion.div>
+        ) : (
+          <motion.p {...pop} transition={{ delay: 0.6 }} className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-gold-soft px-3 py-1 text-sm font-black text-gold-text">
+            <Sparkles className="size-4" aria-hidden /> New title unlocked
+          </motion.p>
+        )}
       </>
     )
   const def = badgeDef(c.id)

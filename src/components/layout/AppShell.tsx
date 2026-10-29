@@ -18,6 +18,7 @@ import { BottomNav } from './BottomNav'
 import { DATA_MODE_LABEL } from './nav'
 import { ShortcutsDialog } from './ShortcutsDialog'
 import { TopBar } from './TopBar'
+import { installClickSounds } from '@/game/fx'
 
 function useApplyTheme() {
   const theme = useStore((s) => s.prefs.theme)
@@ -45,6 +46,7 @@ export function AppShell() {
   useCanvasAutoSync()
   const navigate = useNavigate()
   useEffect(() => setSyncNavigator(navigate), [navigate])
+  useEffect(() => installClickSounds(), [])
   useEffect(() => {
     if (mustSignIn) navigate('/connect', { replace: true })
   }, [mustSignIn, navigate])

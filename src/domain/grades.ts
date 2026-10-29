@@ -156,3 +156,16 @@ export function missingAndUngraded(courseId: string, assignments: Assignment[], 
     awaitingGrade: list.filter((a) => isAssignmentDone(a) && !graded.has(a.id) && a.pointsPossible != null),
   }
 }
+
+/**
+ * What late, missing work could do to the grade: the estimate if every missing assignment that has a
+ * point value were graded as zero. Only an estimate; teachers may accept late work.
+ */
+export function missingImpact(course: Course, grades: GradeRecord[], assignments: Assignment[], now: Date): { count: number; current: number | null; ifZero: number | null } {
+  const { missing } = missingAndUngraded(course.id, assignments, grades, now)
+  const current = summarizeCourseGrades(course, grades, assignments).currentPercent
+  const scored = missing.filter((a) => a.pointsPossible)
+  if (!scored.length || current == null) return { count: missing.length, current, ifZero: null }
+  const zeros: GradeRecord[] = scored.map((a) => ({ id: `zero_${a.id}`, courseId: course.id, assignmentId: a.id, title: a.title, categoryId: a.gradeCategoryId, score: 0, outOf: a.pointsPossible!, source: 'manual', gradedAt: now.toISOString() }))
+  return { count: missing.length, current, ifZero: summarizeCourseGrades(course, [...grades, ...zeros], assignments).currentPercent }
+}

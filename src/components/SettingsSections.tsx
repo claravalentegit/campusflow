@@ -1,44 +1,33 @@
-import { useEffect, type ReactNode } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { type ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { format } from 'date-fns'
-import { CalendarClock, Check, Database, Download, Flame, Gamepad2, Minus, Monitor, Moon, Palette, Plug, Plus, RefreshCw, RotateCcw, ShieldCheck, Sparkles, Sun, Timer, Trash2, Volume2 } from 'lucide-react'
-import { formatMinutes } from '@/domain/dates'
-import type { Preferences, ThemePreference, Weekday } from '@/domain/types'
-import { WEEKDAYS } from '@/domain/types'
+import { Check, Database, Download, Flame, Gamepad2, Monitor, Moon, Palette, Plug, RefreshCw, RotateCcw, ShieldCheck, Sparkles, Sun, Timer, Trash2, Volume2 } from 'lucide-react'
+import type { ThemePreference } from '@/domain/types'
 import { syncCanvas, useCanvasSync } from '@/integrations/canvas/sync'
 import { selectData, STORAGE_KEY, useStore } from '@/store/appStore'
 import { toast } from '@/store/ui'
 import { sfx } from '@/game/fx'
-import { LevelBadge, ProgressBar, useXp } from '@/components/game/GameUI'
-import { Page, usePageTitle } from '@/components/Page'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { confirm } from '@/components/ui/Dialog'
-import { Input } from '@/components/ui/Field'
 import { Panel } from '@/components/ui/Panel'
-import { Segmented } from '@/components/ui/Segmented'
 import { cn } from '@/components/ui/cn'
-import { useDisconnect } from './Connect'
+import { useDisconnect } from '@/pages/Connect'
 
-const DAY_LABEL: Record<Weekday, string> = { sun: 'Sun', mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat' }
-const DEFAULT_AVAILABILITY: Record<Weekday, number> = { sun: 120, mon: 180, tue: 180, wed: 180, thu: 180, fri: 120, sat: 60 }
 
-export function Settings() {
-  usePageTitle('Settings')
+/** All settings, shown at the bottom of the Me tab. */
+export function SettingsSections() {
   const prefs = useStore((s) => s.prefs)
   const update = useStore((s) => s.updatePrefs)
-  const { hash } = useLocation()
-  useEffect(() => {
-    if (hash) document.getElementById(hash.slice(1))?.scrollIntoView({ block: 'start' })
-  }, [hash])
 
   return (
-    <Page className="max-w-3xl">
-      <h1 className="mb-5 text-3xl font-black tracking-tight">Settings</h1>
+    <section aria-labelledby="settings-title" id="settings" className="scroll-mt-24">
+      <h2 id="settings-title" className="mb-3 text-xs font-black tracking-[0.12em] text-fg-3 uppercase">
+        Settings
+      </h2>
       <div className="flex flex-col gap-5">
-        <ProfileCard />
 
         <Panel id="game" title="Game" description="How the XP game works for you." icon={Gamepad2} tone="fire" bodyClassName="flex flex-col gap-6 px-5 pt-2 pb-5">
           <div>
@@ -77,16 +66,8 @@ export function Settings() {
 
         <Panel id="look" title="Look" icon={Palette} tone="pink" bodyClassName="flex flex-col gap-5 px-5 pt-2 pb-5">
           <ThemePicker value={prefs.theme} onChange={(theme) => update({ theme })} />
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-extrabold">Week starts on</p>
-              <p className="text-xs font-semibold text-fg-3">For the calendar and your weekly goal</p>
-            </div>
-            <Segmented label="Week starts on" value={String(prefs.weekStartsOn) as '0' | '1'} onChange={(v) => update({ weekStartsOn: Number(v) as 0 | 1 })} options={[{ value: '1', label: 'Monday' }, { value: '0', label: 'Sunday' }]} />
-          </div>
-        </Panel>
+</Panel>
 
-        <StudyTimePanel prefs={prefs} update={update} />
         <CanvasPanel />
 
         <Panel id="assistant" title="Planning helper" description="Suggestions for stages and what to do next." icon={Sparkles} tone="blue" bodyClassName="flex flex-col gap-4 px-5 pt-2 pb-5">
@@ -99,39 +80,6 @@ export function Settings() {
         </Panel>
 
         <DataPanel />
-      </div>
-    </Page>
-  )
-}
-
-/** Your player card: avatar, level, and name. */
-function ProfileCard() {
-  const name = useStore((s) => s.prefs.displayName)
-  const update = useStore((s) => s.updatePrefs)
-  const { level, title, progress, into, needed } = useXp()
-  return (
-    <section id="profile" className="card-3d relative overflow-hidden p-5 sm:p-6">
-      <span aria-hidden className="pointer-events-none absolute -top-12 -right-12 size-44 rounded-full bg-accent-soft" />
-      <div className="relative flex flex-col items-center gap-4 sm:flex-row">
-        <span className="relative grid size-20 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#ffd56b] to-[#ff8a4c] text-3xl font-black text-white ring-4 ring-gold ring-offset-4 ring-offset-surface">
-          {(name || 'S').slice(0, 1).toUpperCase()}
-          <LevelBadge level={level} size="sm" className="absolute -right-2 -bottom-2" />
-        </span>
-        <div className="w-full min-w-0 flex-1">
-          <label htmlFor="display-name" className="text-xs font-black tracking-[0.12em] text-fg-3 uppercase">
-            Your name
-          </label>
-          <Input id="display-name" value={name} maxLength={40} onChange={(e) => update({ displayName: e.target.value })} className="mt-1 h-12 text-lg font-black" placeholder="What should we call you?" />
-          <div className="mt-3 flex items-center gap-3">
-            <span className="shrink-0 text-sm font-extrabold text-accent-text">
-              Level {level} · {title}
-            </span>
-            <ProgressBar value={progress} className="flex-1" label="Progress to next level" />
-            <span className="tabular shrink-0 text-xs font-bold text-fg-3">
-              {into}/{needed}
-            </span>
-          </div>
-        </div>
       </div>
     </section>
   )
@@ -154,7 +102,6 @@ function ChoiceChips<T extends number>({ label, value, options, onChange, big, i
             animate={active ? { scale: [1, 1.12, 1] } : { scale: 1 }}
             transition={{ duration: 0.3 }}
             onClick={() => {
-              if (!active) sfx.tap()
               onChange(o.value)
             }}
             className={cn(
@@ -201,7 +148,6 @@ function ThemePicker({ value, onChange }: { value: ThemePreference; onChange: (t
               whileHover={{ y: -3 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => {
-                if (!active) sfx.tap()
                 onChange(t.value)
               }}
               className={cn('card-3d relative flex flex-col gap-2 p-2.5 text-left transition-colors', active && 'border-accent')}
@@ -226,44 +172,6 @@ function ThemePicker({ value, onChange }: { value: ThemePreference; onChange: (t
         })}
       </div>
     </div>
-  )
-}
-
-function StudyTimePanel({ prefs, update }: { prefs: Preferences; update: (p: Partial<Preferences>) => void }) {
-  const a = prefs.availability
-  const total = a ? WEEKDAYS.reduce((s, d) => s + a[d], 0) : 0
-  const step = (d: Weekday, delta: number) => {
-    if (!a) return
-    sfx.tap()
-    update({ availability: { ...a, [d]: Math.max(0, Math.min(600, a[d] + delta)) } })
-  }
-  return (
-    <Panel id="availability" title="Study time" description="Tell CampusFlow how much time you have, so it can warn you about busy days." icon={CalendarClock} tone="green" bodyClassName="flex flex-col gap-4 px-5 pt-2 pb-5">
-      <Checkbox checked={!!a} onChange={(on) => update({ availability: on ? DEFAULT_AVAILABILITY : null })} label="Plan around my free time" description={a ? `${formatMinutes(total)} a week` : 'Off: busy days are flagged above a fixed amount of work'} />
-      {a ? (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
-          {WEEKDAYS.map((d) => (
-            <div key={d} className="card-3d flex flex-col items-center gap-1.5 p-2.5">
-              <span className="text-xs font-black tracking-wider text-fg-3 uppercase">{DAY_LABEL[d]}</span>
-              <span className="tabular text-base font-black">{a[d] ? formatMinutes(a[d]) : 'Off'}</span>
-              <span className="flex gap-1">
-                <button type="button" onClick={() => step(d, -30)} disabled={a[d] === 0} aria-label={`Less time on ${DAY_LABEL[d]}`} className="btn-3d grid size-7 place-items-center rounded-lg bg-surface-2 text-fg-2 [--press:var(--line-strong)] disabled:opacity-40">
-                  <Minus className="size-3.5" strokeWidth={3} aria-hidden />
-                </button>
-                <button type="button" onClick={() => step(d, 30)} aria-label={`More time on ${DAY_LABEL[d]}`} className="btn-3d grid size-7 place-items-center rounded-lg bg-success-bright text-white [--press:var(--success-press)]">
-                  <Plus className="size-3.5" strokeWidth={3} aria-hidden />
-                </button>
-              </span>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div>
-          <p className="mb-2 text-sm font-extrabold">Flag a day as busy above</p>
-          <ChoiceChips label="Busy day threshold" value={prefs.overloadThresholdMinutes} options={[180, 240, 300, 360, 480].map((m) => ({ value: m, label: `${m / 60}h`, sub: 'of work' }))} onChange={(m) => update({ overloadThresholdMinutes: m })} />
-        </div>
-      )}
-    </Panel>
   )
 }
 
@@ -363,9 +271,6 @@ function DataPanel() {
         <Button variant="secondary" icon={Download} onClick={exportData}>
           Download a backup
         </Button>
-        <Link to="/me" className="btn-3d inline-flex h-10 items-center gap-2 rounded-xl border-2 border-line bg-surface px-4 text-sm font-extrabold [--press:var(--line)]">
-          See your stats
-        </Link>
       </div>
       <div className="rounded-2xl border-2 border-dashed border-danger/40 p-4">
         <p className="text-sm font-black text-danger">Danger zone</p>

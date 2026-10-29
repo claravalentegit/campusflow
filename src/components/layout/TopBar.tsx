@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { motion } from 'motion/react'
-import { GraduationCap, Keyboard, Moon, Plug, Plus, Search, Settings, Sun, UserRound } from 'lucide-react'
+import { Keyboard, Moon, Plug, Plus, Search, Settings, Sun, UserRound } from 'lucide-react'
 import { useStore } from '@/store/appStore'
 import { useUi } from '@/store/ui'
 import { StreakPill, XpPill, useXp } from '../game/GameUI'
@@ -39,7 +39,7 @@ export function TopBar() {
         </NavLink>
         <nav aria-label="Main" className="hidden items-center gap-1 sm:flex">
           {NAV_ITEMS.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => cn('relative rounded-xl px-4 py-2 text-[15px] font-extrabold transition-colors', isActive ? 'text-accent-text' : 'text-fg-3 hover:text-fg')}>
+            <NavLink key={item.to} to={item.to} end={item.end} data-sfx="swish" className={({ isActive }) => cn('relative rounded-xl px-4 py-2 text-[15px] font-extrabold transition-colors', isActive ? 'text-accent-text' : 'text-fg-3 hover:text-fg')}>
               {({ isActive }) => (
                 <>
                   {isActive && <motion.span layoutId="nav-pill" className="absolute inset-0 -z-10 rounded-xl bg-accent-soft" transition={{ type: 'spring', stiffness: 400, damping: 32 }} />}
@@ -61,9 +61,8 @@ export function TopBar() {
             className="max-sm:hidden"
             items={[
               { label: 'Me: level & badges', icon: UserRound, onSelect: () => navigate('/me') },
-              { label: 'Grades', icon: GraduationCap, onSelect: () => navigate('/grades') },
               { label: 'Canvas connection', icon: Plug, onSelect: () => navigate('/connect') },
-              { label: 'Settings', icon: Settings, onSelect: () => navigate('/settings') },
+              { label: 'Settings', icon: Settings, onSelect: () => navigate('/me#settings') },
               'separator',
               { label: isDark ? 'Light theme' : 'Dark theme', icon: isDark ? Sun : Moon, onSelect: toggle },
               { label: 'Keyboard shortcuts', icon: Keyboard, hint: '?', onSelect: () => setShortcutsOpen(true) },

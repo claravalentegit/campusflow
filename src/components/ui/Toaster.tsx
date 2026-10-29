@@ -1,4 +1,6 @@
+import { useEffect } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
+import { sfx } from '@/game/fx'
 import { CheckCircle2, Info, X, XCircle } from 'lucide-react'
 import { useUi } from '@/store/ui'
 import { cn } from './cn'
@@ -9,6 +11,10 @@ const TILE = { success: 'bg-success-bright [--press:var(--success-press)]', erro
 export function Toaster() {
   const toasts = useUi((s) => s.toasts)
   const dismiss = useUi((s) => s.dismissToast)
+  const newest = toasts.at(-1)?.id
+  useEffect(() => {
+    if (newest) sfx.blip()
+  }, [newest])
   return (
     <div aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-24 z-[60] flex flex-col items-center gap-2 px-4 sm:bottom-5 sm:items-end sm:px-5">
       <AnimatePresence initial={false}>

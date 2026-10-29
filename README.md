@@ -33,48 +33,26 @@ step.
 
 ## What's in it
 
-- **Dashboard**: a greeting with counts calculated from your data and a "what to work on next"
-  pick, with the reasons it was chosen. Also a prioritized *Today* list (overdue, due today,
-  planned for today), upcoming deadlines grouped by when they're due, course rows that show what
-  needs attention, a 7- or 14-day workload chart that flags overloaded days, and important
-  announcements.
-- **Courses**: filter by active, completed or archived. Each course gets the same layout, however
-  its instructor set up Canvas: Overview (description, upcoming work, announcements you can star or
-  mark read, quick links), Modules (expand or collapse, per-item completion, typed items, add your
-  own), Assignments (sort, show completed) and Resources. You can change the color and icon, hide
-  a course or archive it.
-- **Assignments**: list view grouped by deadline, or a board view where you drag cards (or change
-  status from the keyboard). Filter by course or status, search, and sort. Full create, edit and
-  delete with confirmation. The detail page is a workspace with requirements, submission
-  instructions, rubric notes, a checklist (inline add, rename, reorder, plan a day per step),
-  personal notes that autosave, linked resources and notes, study sessions, and time remaining
-  against your estimate.
-- **Planner**: day and week views. Drag tasks between days or into the unscheduled tray. Each day
-  shows how full it is and warns when it's overloaded. "Big assignments without a plan" lead into
-  **Break into steps**: a rule-based breakdown by assignment type, spread across the days before the
-  deadline, where you edit every step before saving.
-- **Calendar**: month, week and day views, filtered by course. Shows deadlines, exams, study
-  sessions, events, reminders and (optionally) planned tasks, with overdue and completed marked
-  clearly. Drag sessions and events to new times; double-click empty time to add a session. When
-  Canvas lists an assignment as a calendar event too, it's shown only once.
-- **Study Tasks**: to-dos and assignment steps, grouped by the day you planned them.
-- **Grades & Progress**: estimated current grade, either weighted by syllabus categories or by
-  total points, with the assumptions written out. Also a target-grade calculator, a trend chart,
-  missing work, work awaiting a grade, and manual grade entry. Every grade is labeled *Canvas*,
-  *Entered by you* or *Demo*.
-- **Notes & Resources**: a notes editor that autosaves, with light Markdown, a preview and `#tags`,
-  linked to a course, module, assignment or study task. A resource library holds links, references
-  and files (validated: PDF, image, text, Word or PowerPoint, up to 5 MB, stored in IndexedDB), with
-  favorites, tags and search.
-- **Everywhere**:
-  - `Ctrl/⌘ K` command palette, which searches courses, assignments, tasks, notes and resources
-  - Quick add (`C`) for assignments, tasks, study sessions, reminders, events and notes
-  - A focus timer (`F`) that logs finished sessions to the calendar
-  - Notifications built from your deadlines, reminders and starred announcements
-  - Toasts with Undo, light and dark themes, a compact sidebar, and a mobile drawer plus bottom
-    navigation
+Three tabs. Nothing opens a separate page: tapping something opens it right where it is.
 
-Single-key shortcuts never fire while you're typing in a field.
+- **Today**: your study pet, the daily quest (hearts), and everything to do, sorted into Late,
+  Today, This week and Later. Tap a quest to open it in place: due date, description, stages you
+  can check off for XP, a 25-minute focus timer, Edit, and Open in Canvas.
+- **Rescue plan**: appears on Today when 2 or more assignments are late. It orders them smallest
+  first and spreads them over the next days (about 2 hours a day). Finishing the whole plan pays
+  a +50 XP bonus. It's rule-based and says so.
+- **Study pet**: each student picks one of five pets (dragon, cat, bunny, fox, axolotl) and names
+  it. It grows with your level (egg → baby → kid → teen → grown up → legend), shows your mood
+  (happy, okay with 1 late, worried with 2+ late, sleepy after 2 quiet days), jumps when XP lands,
+  and never dies.
+- **Courses**: one card per class. Tap it to see your grade, what missing work could cost you,
+  what's due next, the latest announcement, and Open in Canvas.
+- **Me**: your pet, level, streak, badges, and all settings on the same page.
+- **Game feel**: XP, levels, streaks, badges, confetti, and synthesized sound effects for clicks,
+  tabs, opening cards, adding things, XP landing, the pet, focus timers and celebrations (turn
+  them off in Me → Settings).
+- `Ctrl/⌘ K` searches everything; `C` adds an assignment or to-do; `F` starts a focus session.
+  Single-key shortcuts never fire while you're typing.
 
 ## Honesty rules the app follows
 
@@ -84,9 +62,8 @@ Single-key shortcuts never fire while you're typing in a field.
   Canvas.
 - **Demo data is labeled as demo.** A banner appears on the dashboard and the Settings status
   reads *Demo mode — not connected*. Demo submission states and grades carry a *Demo* label.
-- **Rule-based means rule-based.** "What to work on next" and "Break into steps" explain the rules
-  they use and are never called AI. Your available study time is used only if you enter it in
-  Settings.
+- **Rule-based means rule-based.** The Rescue plan and "Suggest stages" explain the rules they
+  use and are never called AI.
 - **No invented grades.** If there's nothing graded, the app shows *Not enough data*.
 
 ## Architecture
@@ -124,10 +101,10 @@ and recommendations without duplicate data.
 **Persistence.** Data lives in `localStorage` under the key `campusflow:v1`, and file attachments
 live in IndexedDB. This is a single-user prototype, so data:
 - stays in one browser and isn't synced between devices,
-- is lost when site data is cleared (Settings → *Export JSON backup*),
+- is lost when site data is cleared (Me → Settings → *Download a backup*),
 - is limited to roughly 5 MB for structured data.
 
-If saving fails, the app shows a toast and doesn't crash. Settings → *Data & storage* can reset the
+If saving fails, the app shows a toast and doesn't crash. Me → Settings → *Your data* can reset the
 demo data or start an empty workspace. No secrets are ever stored on the client.
 
 ## Connecting Canvas
