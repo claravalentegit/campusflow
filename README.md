@@ -126,6 +126,20 @@ Once connected, CampusFlow syncs on open, every 30 minutes, and when you return 
 
 > Not yet verified against a live school Canvas instance from this environment; the client follows the official REST API and is tested against Canvas-shaped responses.
 
+## Putting it online
+
+`render.yaml` sets CampusFlow up as one website for everyone on [Render](https://render.com)
+(free plan): New → Blueprint → pick the repository, then enter your school's Canvas address for
+`CANVAS_ALLOWED_HOSTS` (for example `myschool.instructure.com`). The blueprint turns on:
+
+- `SESSION_STORE=cookie` with a generated `SESSION_SECRET`: each student's session is sealed in
+  their own HttpOnly cookie, so free servers going to sleep or restarting doesn't sign anyone out,
+  and no tokens are written to the server's disk.
+- `TRUST_PROXY=1` so rate limits apply per visitor, and `COOKIE_SECURE=1`.
+
+Never set `CANVAS_ACCESS_TOKEN` on a shared server; it would give everyone the same account.
+Free Render servers sleep after about 15 minutes without visitors and take up to a minute to wake.
+
 ## Optional AI assistant
 
 No AI service is configured. `src/integrations/ai/assistant.ts` defines a `PlanningAssistant`

@@ -1,6 +1,11 @@
 /**
- * Server-side sessions. The browser only ever holds a random session id in an HttpOnly cookie;
- * Canvas tokens live here, encrypted at rest with AES-256-GCM.
+ * Sessions, in one of two modes:
+ *
+ * - "file" (default, for running on your own computer): the browser holds only a random session id
+ *   in an HttpOnly cookie; Canvas tokens live on the server, encrypted at rest with AES-256-GCM.
+ * - "cookie" (SESSION_STORE=cookie, for hosting where the disk is wiped on restart): the session
+ *   itself is sealed with AES-256-GCM under SESSION_SECRET and kept in the HttpOnly cookie. Page
+ *   scripts can't read it, and without the server's secret it can't be read or changed.
  */
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto'
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -20,12 +25,19 @@ const COOKIE = 'cf_session'
 const MAX_AGE_S = 30 * 24 * 3600
 const IDLE_MS = MAX_AGE_S * 1000
 
+const cookieMode = () => process.env.SESSION_STORE === 'cookie'
+
 let dataDir = ''
 let key: Buffer = randomBytes(32)
 // Keyed by sha256(session id), so the stored file never contains usable session ids.
 const sessions = new Map<string, CanvasSession>()
 
 export function initSessions(dir: string) {
+  if (cookieMode()) {
+    if (!process.env.SESSION_SECRET) throw new Error('SESSION_STORE=cookie needs SESSION_SECRET (a long random string).')
+    key = createHash('sha256').update(process.env.SESSION_SECRET).digest()
+    return
+  }
   dataDir = dir
   mkdirSync(dir, { recursive: true })
   if (process.env.SESSION_SECRET) {
@@ -98,6 +110,14 @@ export function setCookie(res: ServerResponse, req: IncomingMessage, name: strin
 export function getSession(req: IncomingMessage): CanvasSession | null {
   const id = parseCookies(req)[COOKIE]
   if (!id) return null
+  if (cookieMode()) {
+    try {
+      const s = JSON.parse(decrypt(id)) as CanvasSession
+      return Date.now() - s.createdAt > IDLE_MS ? null : { ...s, lastUsedAt: Date.now() }
+    } catch {
+      return null // tampered, or sealed with an old secret
+    }
+  }
   const s = sessions.get(hashId(id))
   if (!s) return null
   if (Date.now() - s.lastUsedAt > IDLE_MS) {
@@ -110,6 +130,10 @@ export function getSession(req: IncomingMessage): CanvasSession | null {
 }
 
 export function createSession(req: IncomingMessage, res: ServerResponse, data: Omit<CanvasSession, 'createdAt' | 'lastUsedAt'>) {
+  if (cookieMode()) {
+    setCookie(res, req, COOKIE, encrypt(JSON.stringify({ ...data, createdAt: Date.now(), lastUsedAt: Date.now() })), MAX_AGE_S)
+    return
+  }
   // Replace any existing session for this browser.
   const old = parseCookies(req)[COOKIE]
   if (old) sessions.delete(hashId(old))
@@ -120,6 +144,7 @@ export function createSession(req: IncomingMessage, res: ServerResponse, data: O
 }
 
 export function destroySession(req: IncomingMessage, res: ServerResponse) {
+  if (cookieMode()) return setCookie(res, req, COOKIE, '', 0)
   const id = parseCookies(req)[COOKIE]
   if (id) sessions.delete(hashId(id))
   persist()

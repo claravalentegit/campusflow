@@ -7,3 +7,7 @@ dist
 e2e/screenshots
 dist-single
 .data
+
+# Local downloads and design mockups
+*.zip
+mockups/

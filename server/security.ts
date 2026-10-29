@@ -82,7 +82,16 @@ export function rateLimit(key: string, max: number, windowMs: number) {
   if (h.count > max) throw new HttpError(429, 'Too many attempts. Wait a minute and try again.')
 }
 
+/**
+ * The visitor's address, for rate limiting. Behind a hosting proxy every request comes from the
+ * proxy, so with TRUST_PROXY=1 the address the proxy appended (the last X-Forwarded-For entry) is
+ * used. The earlier entries are whatever the client sent, so they're ignored.
+ */
 export function clientIp(req: IncomingMessage): string {
+  if (process.env.TRUST_PROXY === '1') {
+    const last = String(req.headers['x-forwarded-for'] ?? '').split(',').pop()?.trim()
+    if (last) return last
+  }
   return req.socket.remoteAddress ?? 'unknown'
 }
 

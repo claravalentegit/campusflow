@@ -1,0 +1,26 @@
+# One-click hosting on Render (render.com): New → Blueprint → pick this repository.
+# Render asks for CANVAS_ALLOWED_HOSTS: your school's Canvas address, e.g. myschool.instructure.com
+services:
+  - type: web
+    name: campusflow
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      # Sessions live in an encrypted HttpOnly cookie, so a restart (free servers sleep) doesn't sign anyone out.
+      - key: SESSION_STORE
+        value: cookie
+      - key: SESSION_SECRET
+        generateValue: true
+      # Render's proxy adds the visitor's address; use it for rate limiting.
+      - key: TRUST_PROXY
+        value: "1"
+      - key: COOKIE_SECURE
+        value: "1"
+      # Only allow sign-in to these Canvas hosts (comma-separated, *.wildcards allowed).
+      - key: CANVAS_ALLOWED_HOSTS
+        sync: false
