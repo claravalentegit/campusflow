@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { format } from 'date-fns'
-import { ExternalLink, Pencil, Plus, Timer, Trash2, Wand2, X } from 'lucide-react'
+import { ExternalLink, Pencil, Plus, SkipForward, Timer, Trash2, Wand2, X } from 'lucide-react'
 import { isAssignmentDone, tasksForAssignment } from '@/domain/assignments'
 import { parseInstant } from '@/domain/dates'
 import { xpForTaskNow } from '@/domain/game'
@@ -9,7 +9,7 @@ import { canvasSubmissionLabel } from '@/domain/labels'
 import type { Assignment, StudyTask } from '@/domain/types'
 import { useStore } from '@/store/appStore'
 import { useUi } from '@/store/ui'
-import { completeTask } from '@/game/actions'
+import { completeTask, skipAssignment } from '@/game/actions'
 import { sfx } from '@/game/fx'
 import { CheckButton, XpChip } from '@/components/game/GameUI'
 import { useDeleteAssignment } from '@/components/work'
@@ -137,6 +137,11 @@ export function AssignmentDetails({ a, now }: { a: Assignment; now: Date }) {
         <Button variant="ghost" icon={Pencil} onClick={() => edit({ kind: 'assignment', id: a.id })}>
           Edit details
         </Button>
+        {!done && (
+          <Button variant="ghost" icon={SkipForward} onClick={() => skipAssignment(a)}>
+            Skip
+          </Button>
+        )}
         <IconButton icon={Trash2} label="Delete" onClick={() => void del(a)} />
       </div>
       <p className="text-xs font-semibold text-fg-3" data-testid="submission-notice">

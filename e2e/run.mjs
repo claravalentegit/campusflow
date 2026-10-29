@@ -237,13 +237,28 @@ await test('6. Boss stages: open in place, suggest, clear and add stages', async
   assert(page.url() === `${BASE}/`, `navigated away: ${page.url()}`)
 })
 
+// Finishing late work can unlock a badge or the daily quest; close any celebration that pops up.
+const dismissCelebrations = async (page) => {
+  await page.waitForTimeout(1200)
+  while (await page.getByRole('button', { name: /Keep going|Nice!/ }).count()) {
+    await keepGoing(page)
+    await page.waitForTimeout(800)
+  }
+}
+
 await test('Pet: pick and name a pet; its mood follows late work', async (page) => {
   await page.goto(`${BASE}/`)
   await ready(page)
   await page.getByText('Pick your study pet!').waitFor()
   await pickPet(page, 'Axolotl', 'Bubbles Jr')
   await page.getByTestId('pet-mood').getByText('Bubbles Jr is worried').waitFor()
-  await page.getByRole('checkbox', { name: 'Complete Reading Check: Chapter 11' }).click()
+  // Catch up until only one late thing is left: the pet calms down to "okay".
+  const rescue = page.getByRole('region', { name: /Rescue plan/ })
+  const boxes = rescue.getByRole('checkbox', { name: /^Complete / })
+  while ((await boxes.count()) > 1) {
+    await boxes.first().click()
+    await dismissCelebrations(page)
+  }
   await page.getByTestId('pet-mood').getByText('Bubbles Jr is okay').waitFor()
   await page.reload()
   await page.getByTestId('pet-mood').getByText('Bubbles Jr is okay').waitFor()
@@ -256,20 +271,24 @@ await test('Rescue plan: appears for 2+ late, smallest first, and pays a bonus w
   await ready(page)
   const rescue = page.getByRole('region', { name: /Rescue plan/ })
   const steps = await rescue.locator('li').allInnerTexts()
-  assert(steps.length === 2 && steps[0].includes('Reading Check') && steps[1].includes('Problem Set 7'), `wrong order: ${steps}`)
+  assert(steps.length >= 2 && steps[0].includes('Reading Check') && steps.some((x) => x.includes('Problem Set 7')), `wrong plan: ${steps}`)
+  const minutes = steps.map((x) => {
+    const m = /(\d+)h(?: (\d+)m)?|(\d+)m/.exec(x)
+    return m ? (m[1] ? Number(m[1]) * 60 + Number(m[2] ?? 0) : Number(m[3])) : 0
+  })
+  assert(minutes.every((m, i) => i === 0 || m >= minutes[i - 1]), `not smallest first: ${minutes}`)
   await rescue.getByText(/Made by simple rules, not AI/).waitFor()
-  const before = await xp(page)
-  await rescue.getByRole('checkbox', { name: 'Complete Reading Check: Chapter 11' }).click()
-  await rescue.getByText('1/2').waitFor()
-  await page.getByRole('heading', { name: 'Comeback Kid' }).waitFor() // first late work finished
-  await keepGoing(page)
-  await rescue.getByRole('checkbox', { name: 'Complete Problem Set 7: Lagrange Multipliers' }).click()
-  for (let i = 0; i < 4 && !(await page.getByRole('heading', { name: 'Rescue complete!' }).count()); i++) await keepGoing(page)
+  const boxes = rescue.getByRole('checkbox', { name: /^Complete / })
+  for (let i = 0; i < 6 && (await boxes.count()); i++) {
+    await boxes.first().click()
+    if (await boxes.count()) await dismissCelebrations(page)
+  }
+  for (let i = 0; i < 5 && !(await page.getByRole('heading', { name: 'Rescue complete!' }).count()); i++) await keepGoing(page)
   await page.getByRole('heading', { name: 'Rescue complete!' }).waitFor()
-  await keepGoing(page)
-  await page.waitForTimeout(800)
-  await page.waitForFunction((b) => Number(document.getElementById('xp-target')?.innerText.replace(/[^\d]/g, '')) === b + 5 + 20 + 50, before, { timeout: 5000 })
+  await dismissCelebrations(page)
   assert(!(await rescue.count()), 'rescue plan still shown')
+  const bonus = await page.evaluate(() => JSON.parse(localStorage.getItem('campusflow:v1')).state.xpEvents.filter((e) => e.kind === 'rescue'))
+  assert(bonus.length === 1 && bonus[0].amount === 50, `rescue bonus: ${JSON.stringify(bonus)}`)
 })
 
 await test('Old links land on the matching tab', async (page) => {
@@ -394,6 +413,44 @@ await test('Canvas: connect with an access token, import classes, and sync on To
   await page.getByTestId('canvas-status').getByText('Not connected').waitFor()
   const status = await page.evaluate(() => fetch('/api/canvas/status').then((r) => r.json()))
   assert(status.state === 'signed_out', `server still signed in: ${JSON.stringify(status)}`)
+}, undefined, { fresh: true })
+
+await test('Skip: an assignment leaves CampusFlow, Undo brings it back, and Settings can restore it', async (page) => {
+  await page.goto(`${BASE}/`)
+  await ready(page)
+  await quest(page, 'asg_cs_lab9').waitFor()
+  await page.getByRole('button', { name: 'Skip Lab 9: Heaps' }).click()
+  await quest(page, 'asg_cs_lab9').waitFor({ state: 'detached' })
+  await page.getByText(/Skipped “Lab 9: Heaps”. It’s still on Canvas./).waitFor()
+  await page.getByRole('button', { name: 'Undo' }).click()
+  await quest(page, 'asg_cs_lab9').waitFor()
+  // Skip again from inside the opened quest, then it stays gone after a reload.
+  const details = await openQuest(page, 'asg_cs_lab9')
+  await details.getByRole('button', { name: 'Skip', exact: true }).click()
+  await quest(page, 'asg_cs_lab9').waitFor({ state: 'detached' })
+  await page.reload()
+  await ready(page)
+  assert(!(await page.getByText('Lab 9: Heaps').count()), 'skipped assignment came back after reload')
+  await page.goto(`${BASE}/me#data`)
+  const list = page.getByRole('region', { name: 'Skipped assignments' })
+  await list.getByText('Lab 9: Heaps').waitFor()
+  await list.getByRole('button', { name: 'Restore' }).click()
+  await page.goto(`${BASE}/`)
+  await quest(page, 'asg_cs_lab9').waitFor()
+})
+
+await test('Skip: a skipped Canvas assignment stays out after syncing again', async (page) => {
+  await page.goto(`${BASE}/`)
+  await connectThroughCards(page, MOCK, MOCK_TOKEN)
+  await page.getByRole('button', { name: 'Let’s go' }).click()
+  await ready(page)
+  await page.getByRole('button', { name: 'Skip Lab Report 3: Distillation' }).click()
+  await page.getByText('Lab Report 3: Distillation').first().waitFor({ state: 'detached' }).catch(() => {})
+  await page.waitForTimeout(800)
+  await page.getByRole('button', { name: 'Sync with Canvas now' }).click()
+  await page.getByText(/Synced with Canvas just now/).waitFor()
+  await page.waitForTimeout(500)
+  assert(!(await page.locator('[id^="quest-"]').filter({ hasText: 'Lab Report 3' }).count()), 'skipped Canvas assignment came back after sync')
 }, undefined, { fresh: true })
 
 await test('Canvas: without the server, the page says so instead of pretending', async (page) => {

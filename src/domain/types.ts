@@ -326,8 +326,20 @@ export interface Preferences {
   canvasHost: string | null
   /** The study pet the student picked. null until they pick one. */
   pet: { species: 'cat' | 'dragon' | 'bunny' | 'fox' | 'axolotl'; name: string } | null
+  /** Assignments the student skipped: hidden everywhere in CampusFlow and ignored by future syncs. */
+  skipped: SkippedAssignment[]
   /** The active Rescue plan: late assignments in their fixed order. */
   rescue: { ids: ID[]; startedAt: ISODateTime } | null
+}
+
+/** A skipped assignment, kept so it can be restored. Skipping never changes anything on Canvas. */
+export interface SkippedAssignment {
+  id: ID
+  title: string
+  courseId: ID
+  skippedAt: ISODateTime
+  assignment: Assignment
+  tasks: StudyTask[]
 }
 
 export interface AppData {

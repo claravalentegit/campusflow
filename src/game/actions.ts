@@ -5,6 +5,19 @@ import { useStore } from '@/store/appStore'
 import { toast } from '@/store/ui'
 import { celebrateCompletion, sfx } from './fx'
 
+/** Skip an assignment: it leaves CampusFlow (not Canvas), with an Undo. */
+export function skipAssignment(a: Assignment) {
+  sfx.swish()
+  useStore.getState().skipAssignment(a.id)
+  toast(`Skipped “${a.title}”. It’s still on Canvas.`, 'info', {
+    label: 'Undo',
+    run: () => {
+      useStore.getState().unskipAssignment(a.id)
+      sfx.pop()
+    },
+  })
+}
+
 /** Complete (or reopen) an assignment with the full reward treatment and an Undo. */
 export function completeAssignment(a: Assignment, el: Element | null) {
   const st = useStore.getState()

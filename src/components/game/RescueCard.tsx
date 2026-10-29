@@ -1,6 +1,6 @@
 import { motion } from 'motion/react'
 import { format } from 'date-fns'
-import { LifeBuoy, Play } from 'lucide-react'
+import { LifeBuoy, Play, SkipForward } from 'lucide-react'
 import { formatMinutes, parseLocalDay, toLocalDay } from '@/domain/dates'
 import { xpForAssignmentNow } from '@/domain/game'
 import { RESCUE_BONUS, RESCUE_DAILY_MINUTES, rescueSteps } from '@/domain/rescue'
@@ -8,7 +8,7 @@ import { useCourseMap } from '@/hooks/useData'
 import { useNow } from '@/hooks/useNow'
 import { useStore } from '@/store/appStore'
 import { useUi } from '@/store/ui'
-import { completeAssignment } from '@/game/actions'
+import { completeAssignment, skipAssignment } from '@/game/actions'
 import { CourseDot } from '@/components/course'
 import { CheckButton, ProgressBar, XpChip } from '@/components/game/GameUI'
 import { Button } from '@/components/ui/Button'
@@ -75,6 +75,11 @@ export function RescueCard() {
                 </span>
               </span>
               {!s.done && <XpChip amount={xpForAssignmentNow(a, tasks, now)} />}
+              {!s.done && (
+                <button type="button" onClick={() => skipAssignment(a)} aria-label={`Skip ${s.title}`} title="Skip: remove from CampusFlow" data-sfx="none" className="grid size-8 shrink-0 place-items-center rounded-lg text-fg-3 hover:bg-surface-2 hover:text-fg">
+                  <SkipForward className="size-4" strokeWidth={2.5} aria-hidden />
+                </button>
+              )}
             </motion.li>
           )
         })}

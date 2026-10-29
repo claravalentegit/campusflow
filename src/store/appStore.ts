@@ -48,11 +48,12 @@ export const DEFAULT_PREFS: Preferences = {
   canvasHost: null,
   pet: null,
   rescue: null,
+  skipped: [],
 }
 
 function freshDemo(prefs: Preferences) {
   const data = buildDemoData()
-  return { ...data, focus: null, prefs: { ...prefs, dataMode: 'demo' as const, lastCanvasSyncAt: null, lastSeenLevel: levelFor(totalXp(data.xpEvents)).level, questCelebratedOn: null } }
+  return { ...data, focus: null, prefs: { ...prefs, skipped: [], dataMode: 'demo' as const, lastCanvasSyncAt: null, lastSeenLevel: levelFor(totalXp(data.xpEvents)).level, questCelebratedOn: null } }
 }
 
 export interface FocusState {
@@ -77,6 +78,10 @@ interface Actions {
   /** Returns the XP event when this completes the assignment. */
   setAssignmentStatus: (id: string, status: AssignmentStatus) => XpEvent | null
   deleteAssignment: (id: string) => void
+  /** Take an assignment out of CampusFlow (it stays on Canvas). Future syncs ignore it. */
+  skipAssignment: (id: string) => void
+  /** Bring a skipped assignment back. */
+  unskipAssignment: (id: string) => void
   // Tasks
   addTask: (t: Draft<StudyTask>) => StudyTask
   addTasks: (ts: Array<Draft<StudyTask>>) => void
@@ -236,6 +241,27 @@ export const useStore = create<Store>()(
         })
         return event
       },
+      skipAssignment: (id) =>
+        set((s) => {
+          const a = s.assignments.find((x) => x.id === id)
+          if (!a) return {}
+          const entry = { id, title: a.title, courseId: a.courseId, skippedAt: now(), assignment: a, tasks: s.tasks.filter((t) => t.assignmentId === id) }
+          return {
+            assignments: s.assignments.filter((x) => x.id !== id),
+            tasks: s.tasks.filter((t) => t.assignmentId !== id),
+            prefs: { ...s.prefs, skipped: [entry, ...s.prefs.skipped.filter((x) => x.id !== id)].slice(0, 300) },
+          }
+        }),
+      unskipAssignment: (id) =>
+        set((s) => {
+          const entry = s.prefs.skipped.find((x) => x.id === id)
+          if (!entry) return {}
+          return {
+            assignments: s.assignments.some((x) => x.id === id) ? s.assignments : [...s.assignments, entry.assignment],
+            tasks: [...s.tasks.filter((t) => t.assignmentId !== id), ...entry.tasks],
+            prefs: { ...s.prefs, skipped: s.prefs.skipped.filter((x) => x.id !== id) },
+          }
+        }),
       deleteAssignment: (id) =>
         set((s) => ({
           assignments: s.assignments.filter((a) => a.id !== id),
@@ -399,7 +425,9 @@ export const useStore = create<Store>()(
         // Switching from demo to a real connection removes the sample records so they are never mixed.
         const base: AppData = s.prefs.dataMode === 'demo' ? removeDemoRecords(s) : s
         const wasDone = new Set(base.assignments.filter(isAssignmentDone).map((a) => a.id))
-        const merged = mergeCanvasData(base, mapped)
+        // Skipped assignments stay out, however often Canvas sends them.
+        const skippedIds = new Set(s.prefs.skipped.map((x) => x.id))
+        const merged = mergeCanvasData(base, { ...mapped, assignments: mapped.assignments.filter((a) => !skippedIds.has(a.id)) })
         // Work you submitted on Canvas after connecting earns XP, as if you checked it off here.
         const rewarded = new Set(merged.xpEvents.filter((e) => e.kind === 'assignment').map((e) => e.refId))
         const events: XpEvent[] = []

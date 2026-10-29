@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { differenceInCalendarDays, format, isSameDay } from 'date-fns'
-import { ChevronDown, Crown, Plug, Plus, RefreshCw, Trophy } from 'lucide-react'
+import { ChevronDown, Crown, Plug, Plus, RefreshCw, SkipForward, Trophy } from 'lucide-react'
 import { checklistProgress, isAssignmentDone, isAssignmentOverdue } from '@/domain/assignments'
 import { dueBucket, formatDueDay, greeting, parseInstant, toLocalDay } from '@/domain/dates'
 import { isBoss, xpForAssignmentNow, xpForTaskNow } from '@/domain/game'
@@ -12,7 +12,7 @@ import { useNow } from '@/hooks/useNow'
 import { useStore } from '@/store/appStore'
 import { useUi } from '@/store/ui'
 import { syncCanvas, useCanvasSync } from '@/integrations/canvas/sync'
-import { completeAssignment, completeTask, useLinger } from '@/game/actions'
+import { completeAssignment, completeTask, skipAssignment, useLinger } from '@/game/actions'
 import { CourseDot } from '@/components/course'
 import { CheckButton, LevelBadge, XpChip } from '@/components/game/GameUI'
 import { PetCard } from '@/components/game/PetCard'
@@ -246,6 +246,11 @@ function QuestRow({ item, now, course, parent, tasks, late, open, onDone, onOpen
         {boss && !done && <Crown className="relative hidden size-5 shrink-0 fill-accent/20 text-accent sm:block" aria-label="Boss level" />}
         <XpChip amount={xp} tone={boss ? 'purple' : done ? 'muted' : 'gold'} className="relative max-sm:hidden" />
         <span className={cn('relative hidden w-28 shrink-0 text-right text-sm font-extrabold sm:block', overdue && !done ? 'text-danger' : 'text-fg-2')}>{done ? 'Done!' : when}</span>
+        {isA && !done && (
+          <button type="button" onClick={() => skipAssignment(item.a)} aria-label={`Skip ${title}`} title="Skip: remove from CampusFlow" data-sfx="none" className="relative z-[1] grid size-9 shrink-0 place-items-center rounded-xl text-fg-3 transition-colors hover:bg-surface-2 hover:text-fg">
+            <SkipForward className="size-[18px]" strokeWidth={2.5} aria-hidden />
+          </button>
+        )}
         <ChevronDown className={cn('relative size-5 shrink-0 text-fg-3 transition-transform', open && 'rotate-180')} aria-hidden />
       </div>
       <AnimatePresence initial={false}>

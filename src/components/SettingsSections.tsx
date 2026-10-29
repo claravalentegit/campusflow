@@ -272,6 +272,7 @@ function DataPanel() {
           Download a backup
         </Button>
       </div>
+      <SkippedList />
       <div className="rounded-2xl border-2 border-dashed border-danger/40 p-4">
         <p className="text-sm font-black text-danger">Danger zone</p>
         <p className="mb-3 text-xs font-semibold text-fg-3">These can’t be undone. Download a backup first if you want to keep anything.</p>
@@ -303,5 +304,40 @@ function DataPanel() {
         </div>
       </div>
     </Panel>
+  )
+}
+
+/** Assignments the student skipped, with a way to bring each one back. */
+function SkippedList() {
+  const skipped = useStore((s) => s.prefs.skipped)
+  const courses = useStore((s) => s.courses)
+  const unskip = useStore((s) => s.unskipAssignment)
+  if (!skipped.length) return null
+  return (
+    <section aria-label="Skipped assignments" className="rounded-2xl bg-surface-2 p-4">
+      <p className="text-sm font-black">Skipped assignments · {skipped.length}</p>
+      <p className="mb-2 text-xs font-semibold text-fg-3">Hidden in CampusFlow only. They’re still on Canvas.</p>
+      <ul className="flex max-h-64 flex-col gap-1.5 overflow-y-auto">
+        {skipped.map((x) => (
+          <li key={x.id} className="flex items-center gap-3 rounded-xl bg-surface px-3 py-2">
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-extrabold">{x.title}</span>
+              <span className="block truncate text-xs font-bold text-fg-3">{courses.find((c) => c.id === x.courseId)?.name ?? 'Class'} · skipped {format(new Date(x.skippedAt), 'MMM d')}</span>
+            </span>
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={RotateCcw}
+              onClick={() => {
+                unskip(x.id)
+                toast(`“${x.title}” is back`)
+              }}
+            >
+              Restore
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
