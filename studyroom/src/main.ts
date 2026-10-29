@@ -75,11 +75,17 @@ function toast(msg: string) {
 }
 
 async function api<T>(path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`/api/rooms${path}`, {
-    method: body === undefined ? 'GET' : 'POST',
-    headers: body === undefined ? {} : { 'Content-Type': 'application/json', 'X-Study-Room': '1' },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  })
+  let res: Response
+  try {
+    res = await fetch(`/api/rooms${path}`, {
+      method: body === undefined ? 'GET' : 'POST',
+      headers: body === undefined ? {} : { 'Content-Type': 'application/json', 'X-Study-Room': '1' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    })
+  } catch {
+    throw new Error('Rooms need the Study Room website. Here you can try “Study alone”.')
+  }
+  if (!(res.headers.get('content-type') ?? '').includes('application/json')) throw new Error('Rooms need the Study Room website. Here you can try “Study alone”.')
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error((data as { message?: string }).message ?? 'Something went wrong.')
   return data as T
