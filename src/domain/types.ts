@@ -326,6 +326,8 @@ export interface Preferences {
   canvasHost: string | null
   /** The study pet the student picked. null until they pick one. */
   pet: { species: 'cat' | 'dragon' | 'bunny' | 'fox' | 'axolotl'; name: string } | null
+  /** Family sharing is on: linked parents get an up-to-date copy. */
+  familySharing: boolean
   /** Assignments the student skipped: hidden everywhere in CampusFlow and ignored by future syncs. */
   skipped: SkippedAssignment[]
   /** The active Rescue plan: late assignments in their fixed order. */

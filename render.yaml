@@ -23,6 +23,10 @@ services:
       # Only allow sign-in to these Canvas hosts (comma-separated, *.wildcards allowed).
       - key: CANVAS_ALLOWED_HOSTS
         value: ocps.instructure.com
+      # Family sharing needs a database that survives restarts: paste a Neon (Postgres) connection string.
+      # Everything stored there is encrypted with SESSION_SECRET first.
+      - key: DATABASE_URL
+        sync: false
 
   # Study Room: a separate app in studyroom/ (live study rooms with pixel characters).
   - type: web

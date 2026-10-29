@@ -16,7 +16,7 @@ export class CanvasError extends Error {
 
 const UNREACHABLE = 'Canvas sign-in needs the CampusFlow server, and it isn’t reachable from here.'
 
-async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   let res: Response
   try {
     res = await fetch(path, {

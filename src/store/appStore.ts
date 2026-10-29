@@ -49,6 +49,7 @@ export const DEFAULT_PREFS: Preferences = {
   pet: null,
   rescue: null,
   skipped: [],
+  familySharing: false,
 }
 
 function freshDemo(prefs: Preferences) {

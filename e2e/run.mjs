@@ -453,6 +453,52 @@ await test('Skip: a skipped Canvas assignment stays out after syncing again', as
   assert(!(await page.locator('[id^="quest-"]').filter({ hasText: 'Lab Report 3' }).count()), 'skipped Canvas assignment came back after sync')
 }, undefined, { fresh: true })
 
+await test('Family: a parent links with a code, sees everything in plain words, and is told when sharing stops', async (page) => {
+  await page.goto(`${BASE}/`)
+  await connectThroughCards(page, MOCK, MOCK_TOKEN)
+  await page.getByRole('button', { name: 'Let’s go' }).click()
+  await ready(page)
+  await page.goto(`${BASE}/me#family`)
+  await page.getByRole('button', { name: 'Add a parent' }).click()
+  const code = ((await page.getByTestId('family-code').locator('p').nth(1).innerText()) || '').replace(/\D/g, '')
+  assert(/^\d{6}$/.test(code), `no code: ${code}`)
+
+  // The parent, on their own phone (a separate browser with no Canvas).
+  const parentCtx = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const parent = await parentCtx.newPage()
+  parent.on('pageerror', (e) => consoleErrors.push(`family parent: ${e}`))
+  await parent.goto(`${BASE}/parent?code=${code}`)
+  await parent.getByLabel('Your name (like Mom, Dad, Abuela)').fill('Mom')
+  await parent.getByRole('button', { name: 'Link to my student' }).click()
+
+  // The student sees Mom linked, and their app shares its data.
+  await page.getByRole('region', { name: 'Shared with' }).getByText('Mom').waitFor()
+  for (let i = 0; i < 10 && !(await parent.getByTestId('parent-view').count()); i++) {
+    await parent.waitForTimeout(1500)
+    await parent.reload()
+  }
+  const view = parent.getByTestId('parent-view')
+  await view.getByText('Jordan’s week').waitFor()
+  await view.getByRole('region', { name: 'Needs attention' }).getByText('Discussion: Social Norms').waitFor()
+  await view.getByRole('region', { name: 'Coming up' }).getByText('Homework 6: Eigenvalues').waitFor()
+  await view.getByRole('tab', { name: 'Classes' }).click()
+  await view.getByRole('button', { name: /Linear Algebra/ }).click()
+  await view.getByText('Homework 5: Determinants').waitFor()
+  await view.getByText('18 / 20', { exact: false }).waitFor()
+  await view.getByText('Midterm review session Thursday').waitFor()
+  await parent.getByRole('button', { name: 'Cambiar a español' }).click()
+  await parent.getByRole('tab', { name: 'Esta semana' }).waitFor()
+  assert((await parent.evaluate(() => document.documentElement.scrollWidth)) <= 390, 'parent view overflows on a phone')
+  await parent.screenshot({ path: join(shots, 'family-parent.png'), fullPage: true })
+
+  // The student stops sharing; the parent is told.
+  await page.getByRole('region', { name: 'Shared with' }).getByRole('button', { name: 'Remove' }).click()
+  await dialog(page).getByRole('button', { name: 'Stop sharing' }).click()
+  await parent.reload()
+  await parent.getByText('Jordan dejó de compartir.').waitFor()
+  await parentCtx.close()
+}, undefined, { fresh: true })
+
 await test('Canvas: without the server, the page says so instead of pretending', async (page) => {
   await page.route('**/api/**', (r) => r.abort())
   await page.goto(`${BASE}/connect`)

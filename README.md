@@ -140,6 +140,25 @@ Once connected, CampusFlow syncs on open, every 30 minutes, and when you return 
 Never set `CANVAS_ACCESS_TOKEN` on a shared server; it would give everyone the same account.
 Free Render servers sleep after about 15 minutes without visitors and take up to a minute to wake.
 
+## Family sharing
+
+Parents follow their student's school year without a Canvas account: the student opens
+**Me → Family → Add a parent** and gets a 6-digit code (one use, 15 minutes) and a QR code; the parent
+opens `/parent` (or taps "I'm a parent" on the welcome card), types the code and their name.
+
+- Parents see everything CampusFlow shows: every assignment (skipped ones are labeled), grades with
+  how each class is weighted, teacher announcements, streak and level. Private notes are never shared.
+  English and Spanish.
+- The student always sees who's linked and when they last looked, and can remove anyone; the parent is
+  then told sharing stopped. A parent can unlink their own phone.
+- The student's app uploads a snapshot a few seconds after anything changes. Snapshots are only kept
+  while at least one parent is linked.
+- Parent devices get a random token in an HttpOnly cookie; only its hash is stored. Codes are stored
+  hashed and rate limited.
+- Storage (`server/kv.ts`): Postgres when `DATABASE_URL` is set (e.g. a free Neon database), otherwise a
+  file in `DATA_DIR`. Every value is sealed with AES-256-GCM before it's stored, so the database only
+  holds ciphertext.
+
 ## Optional AI assistant
 
 No AI service is configured. `src/integrations/ai/assistant.ts` defines a `PlanningAssistant`

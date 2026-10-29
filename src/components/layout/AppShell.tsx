@@ -19,6 +19,7 @@ import { DATA_MODE_LABEL } from './nav'
 import { ShortcutsDialog } from './ShortcutsDialog'
 import { TopBar } from './TopBar'
 import { installClickSounds } from '@/game/fx'
+import { useFamilySync } from '@/integrations/family'
 
 function useApplyTheme() {
   const theme = useStore((s) => s.prefs.theme)
@@ -44,6 +45,7 @@ export function AppShell() {
   const bare = !onboarded && pathname === '/connect'
   useApplyTheme()
   useCanvasAutoSync()
+  useFamilySync()
   const navigate = useNavigate()
   useEffect(() => setSyncNavigator(navigate), [navigate])
   useEffect(() => installClickSounds(), [])

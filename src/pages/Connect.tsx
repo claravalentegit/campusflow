@@ -182,9 +182,14 @@ export function Connect() {
                 }
                 footer={
                   welcome ? (
-                    <button type="button" onClick={skip} className="text-sm font-black text-accent-text hover:underline">
-                      Just looking? {skipLabel} →
-                    </button>
+                    <span className="flex flex-col items-center gap-2">
+                      <button type="button" onClick={skip} className="text-sm font-black text-accent-text hover:underline">
+                        Just looking? {skipLabel} →
+                      </button>
+                      <button type="button" onClick={() => navigate('/parent')} className="text-sm font-black text-[#0b8584] hover:underline">
+                        I’m a parent →
+                      </button>
+                    </span>
                   ) : (
                     <button type="button" onClick={() => navigate(-1)} className="text-sm font-black text-fg-3 hover:text-fg">
                       Not now

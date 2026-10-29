@@ -13,7 +13,9 @@ import { existsSync, readFileSync, statSync } from 'node:fs'
 import { extname, join, normalize, resolve } from 'node:path'
 import { CanvasHttpError, fetchSnapshot, getOne, readCanvasConfig, type CanvasConfig } from './canvas.ts'
 import { assertCsrfSafe, assertSafeCanvasHost, clientIp, HttpError, normalizeCanvasUrl, rateLimit, readJsonBody } from './security.ts'
-import { createSession, destroySession, getSession, initSessions, type CanvasSession } from './session.ts'
+import { createSession, destroySession, getSession, initSessions, parseCookies, setCookie, type CanvasSession } from './session.ts'
+import { family, FamilyError, studentIdFor } from './family.ts'
+import { openKv } from './kv.ts'
 
 const root = resolve(import.meta.dirname, '..')
 if (existsSync(join(root, '.env'))) process.loadEnvFile(join(root, '.env'))
@@ -21,7 +23,19 @@ if (existsSync(join(root, '.env'))) process.loadEnvFile(join(root, '.env'))
 const PORT = Number(process.env.PORT ?? 8787)
 const SERVE_DIST = process.argv.includes('--serve-dist')
 const DIST = join(root, 'dist')
-initSessions(resolve(root, process.env.DATA_DIR ?? '.data'))
+const DATA_DIR = resolve(root, process.env.DATA_DIR ?? '.data')
+initSessions(DATA_DIR)
+const kv = await openKv(DATA_DIR)
+const fam = family(kv)
+const PARENT_COOKIE = 'cf_parent'
+const PARENT_MAX_AGE_S = 400 * 24 * 3600
+
+/** The signed-in student (family sharing needs a real Canvas sign-in, not the demo). */
+function familyStudent(req: IncomingMessage): { id: string; name: string } {
+  const s = getSession(req)
+  if (!s || !s.userId) throw new HttpError(401, 'Connect Canvas to share with your family.')
+  return { id: studentIdFor(s.baseUrl, s.userId), name: s.userName.split(' ')[0] || 'Student' }
+}
 
 function json(res: ServerResponse, status: number, body: unknown) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' })
@@ -97,6 +111,57 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL) {
     }
   }
 
+  // ——— Family sharing: the student's side ———
+  if (path === '/api/family' && method === 'GET') {
+    return json(res, 200, await fam.overview(familyStudent(req).id))
+  }
+  if (path === '/api/family/code' && method === 'POST') {
+    assertCsrfSafe(req)
+    const st = familyStudent(req)
+    rateLimit(`family-code:${st.id}`, 12, 3600_000)
+    return json(res, 200, await fam.createCode(st.id, st.name))
+  }
+  if (path === '/api/family/remove' && method === 'POST') {
+    assertCsrfSafe(req)
+    const body = await readJsonBody<{ parentId?: string }>(req)
+    await fam.remove(familyStudent(req).id, String(body.parentId ?? ''))
+    return json(res, 200, await fam.overview(familyStudent(req).id))
+  }
+  if (path === '/api/family/snapshot' && method === 'POST') {
+    assertCsrfSafe(req)
+    const st = familyStudent(req)
+    rateLimit(`family-snap:${st.id}`, 30, 60_000)
+    const body = await readJsonBody<{ data?: unknown }>(req, 2 * 1024 * 1024)
+    if (!body.data || typeof body.data !== 'object') throw new HttpError(400, 'Invalid request.')
+    return json(res, 200, await fam.saveSnapshot(st.id, body.data))
+  }
+
+  // ——— Family sharing: the parent's side ———
+  if (path === '/api/parent/link' && method === 'POST') {
+    assertCsrfSafe(req)
+    rateLimit(`parent-link:${clientIp(req)}`, 10, 10 * 60_000)
+    rateLimit('parent-link:all', 300, 10 * 60_000)
+    const body = await readJsonBody<{ code?: string; name?: string }>(req)
+    const { token, studentName } = await fam.link(body.code, body.name, parseCookies(req)[PARENT_COOKIE])
+    setCookie(res, req, PARENT_COOKIE, token, PARENT_MAX_AGE_S)
+    return json(res, 200, { studentName })
+  }
+  if (path === '/api/parent/me' && method === 'GET') {
+    const me = await fam.parentMe(parseCookies(req)[PARENT_COOKIE])
+    return me ? json(res, 200, me) : json(res, 401, { message: 'This device isn’t linked yet.' })
+  }
+  const view = /^\/api\/parent\/students\/([A-Za-z0-9]{24})$/.exec(path)
+  if (view && method === 'GET') {
+    rateLimit(`parent-view:${clientIp(req)}`, 120, 60_000)
+    return json(res, 200, await fam.parentView(parseCookies(req)[PARENT_COOKIE], view[1]))
+  }
+  if (path === '/api/parent/unlink' && method === 'POST') {
+    assertCsrfSafe(req)
+    await fam.parentUnlink(parseCookies(req)[PARENT_COOKIE])
+    setCookie(res, req, PARENT_COOKIE, '', 0)
+    return json(res, 200, { ok: true })
+  }
+
   if (path === '/api/canvas/snapshot' && method === 'GET') {
     try {
       return json(res, 200, await withCanvas(req, fetchSnapshot))
@@ -138,7 +203,11 @@ createServer((req, res) => {
   const url = new URL(req.url ?? '/', 'http://localhost')
   const path = url.pathname
   if (path.startsWith('/api/')) {
-    handleApi(req, res, url).catch((e) => (e instanceof HttpError ? json(res, e.status, { message: e.message }) : json(res, 500, { message: 'Internal error' })))
+    handleApi(req, res, url).catch((e) => {
+      if (e instanceof HttpError || e instanceof FamilyError) return json(res, e.status, { message: e.message })
+      console.error(e)
+      json(res, 500, { message: 'Internal error' })
+    })
     return
   }
   if (SERVE_DIST) return serveStatic(res, path)

@@ -20,6 +20,8 @@ function ToSettings() {
 }
 
 const router = createRouter([
+  // Parents: their own screens, outside the student app.
+  { path: '/parent', lazy: page(() => import('@/parent/ParentApp'), 'ParentApp') },
   {
     element: <AppShell />,
     children: [

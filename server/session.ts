@@ -60,14 +60,15 @@ export function initSessions(dir: string) {
   }
 }
 
-function encrypt(plain: string): string {
+/** Seal any text with the server key (AES-256-GCM). Used for sessions and family data. */
+export function encrypt(plain: string): string {
   const iv = randomBytes(12)
   const cipher = createCipheriv('aes-256-gcm', key, iv)
   const data = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()])
   return [iv, cipher.getAuthTag(), data].map((b) => b.toString('base64')).join('.')
 }
 
-function decrypt(text: string): string {
+export function decrypt(text: string): string {
   const [iv, tag, data] = text.split('.').map((s) => Buffer.from(s, 'base64'))
   const decipher = createDecipheriv('aes-256-gcm', key, iv)
   decipher.setAuthTag(tag)
