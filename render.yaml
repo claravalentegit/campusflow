@@ -23,3 +23,18 @@ services:
       # Only allow sign-in to these Canvas hosts (comma-separated, *.wildcards allowed).
       - key: CANVAS_ALLOWED_HOSTS
         value: ocps.instructure.com
+
+  # Study Room: a separate app in studyroom/ (live study rooms with pixel characters).
+  - type: web
+    name: study-room
+    runtime: node
+    plan: free
+    rootDir: studyroom
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: TRUST_PROXY
+        value: "1"
