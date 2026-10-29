@@ -161,19 +161,34 @@ $('#home').addEventListener('click', (e) => {
     me.look = { ...me.look, [t.dataset.look]: Number(t.dataset.v) }
     store.set('look', me.look)
     sfx.pick()
-    renderHome()
-    return
+    return updateMaker()
   }
   if (t.id === 'dice') {
     me.look = { ...randomLook(), hat: me.look.hat }
     store.set('look', me.look)
     sfx.pick()
-    renderHome()
+    return updateMaker()
   }
   if (t.id === 'solo') return enter('solo')
   if (t.id === 'make') return void makeRoom()
   if (t.id === 'join-invite') return void joinRoom(inviteCode)
 })
+/** Picking a feature only swaps the picture and the selected buttons, so nothing flashes. */
+function updateMaker() {
+  const img = $<HTMLImageElement>('#home .preview .sprite')
+  if (img) {
+    img.src = spriteUrl(me.look, 'idle')
+    img.classList.remove('picked')
+    void img.offsetWidth
+    img.classList.add('picked')
+  }
+  for (const b of document.querySelectorAll<HTMLButtonElement>('#home [data-look]')) {
+    const on = me.look[b.dataset.look as keyof Look] === Number(b.dataset.v)
+    b.classList.toggle('on', on)
+    b.setAttribute('aria-pressed', String(on))
+  }
+}
+
 $('#home').addEventListener('input', (e) => {
   if ((e.target as HTMLElement).id === 'name') {
     me.name = (e.target as HTMLInputElement).value

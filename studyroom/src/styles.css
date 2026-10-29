@@ -88,6 +88,8 @@ body[data-mode='home'] .people { opacity: 0; pointer-events: none; }
 .maker { display: flex; gap: 16px; align-items: center; }
 .preview { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px; border-radius: 22px; background: linear-gradient(#f7e2d2, #f2d2bd); min-width: 150px; }
 .bob { animation: idle 2.4s ease-in-out infinite; --px: 7px; }
+.bob.picked { animation: picked .35s cubic-bezier(.3, 1.6, .5, 1), idle 2.4s ease-in-out .35s infinite; }
+@keyframes picked { 40% { transform: translateY(-10px) scale(1.06, .95); } }
 .opts { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .row { display: flex; flex-direction: column; gap: 4px; }
 .lbl { font-size: 12px; font-weight: 900; color: #9a7a8a; text-transform: uppercase; letter-spacing: .08em; }
