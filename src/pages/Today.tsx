@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { differenceInCalendarDays, format, isSameDay } from 'date-fns'
-import { ChevronDown, Crown, Plug, Plus, RefreshCw, SkipForward, Trophy } from 'lucide-react'
+import { ChevronDown, Crown, ListChecks, Plug, Plus, RefreshCw, SkipForward, Trophy } from 'lucide-react'
 import { checklistProgress, isAssignmentDone, isAssignmentOverdue } from '@/domain/assignments'
 import { dueBucket, formatDueDay, greeting, parseInstant, toLocalDay } from '@/domain/dates'
 import { isBoss, xpForAssignmentNow, xpForTaskNow } from '@/domain/game'
@@ -35,6 +35,7 @@ export function Today() {
   const visible = useVisibleCourseIds()
   const courseMap = useCourseMap()
   const openQuickAdd = useUi((s) => s.openQuickAdd)
+  const navigate = useNavigate()
   const { lingering, linger } = useLinger(950)
   const [showLater, setShowLater] = useState(false)
   const [showDone, setShowDone] = useState(false)
@@ -152,9 +153,14 @@ export function Today() {
           </motion.div>
         )}
 
-        <Button variant="secondary" icon={Plus} className="self-start" onClick={() => openQuickAdd({ kind: 'assignment' })}>
-          Add assignment or task
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" icon={ListChecks} onClick={() => navigate('/courses?view=all')}>
+            See all assignments
+          </Button>
+          <Button variant="secondary" icon={Plus} onClick={() => openQuickAdd({ kind: 'assignment' })}>
+            Add assignment or task
+          </Button>
+        </div>
 
         {groups.doneToday.length > 0 && (
           <section aria-label="Done today">

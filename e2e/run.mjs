@@ -126,6 +126,15 @@ const keepGoing = async (page) => {
   await page.waitForTimeout(400)
 }
 
+// Finishing late work can unlock a badge or the daily quest; close any celebration that pops up.
+const dismissCelebrations = async (page) => {
+  await page.waitForTimeout(1200)
+  while (await page.getByRole('button', { name: /Keep going|Nice!/ }).count()) {
+    await keepGoing(page)
+    await page.waitForTimeout(800)
+  }
+}
+
 await test('1. Add a class; it opens in place on Courses and persists', async (page) => {
   await page.goto(`${BASE}/courses`)
   await page.getByRole('button', { name: 'Add class' }).first().click()
@@ -184,7 +193,7 @@ await test('11. Personal completion is never shown as a Canvas submission', asyn
   await page.goto(`${BASE}/`)
   await ready(page)
   await page.getByRole('checkbox', { name: 'Complete Quiz 7: Working Memory' }).click()
-  await page.waitForTimeout(1200)
+  await dismissCelebrations(page) // late at night this unlocks Night Owl
   await page.getByRole('button', { name: /done today/ }).click()
   const details = await openQuest(page, 'asg_psyc_quiz7')
   const text = await details.getByTestId('submission-notice').textContent()
@@ -197,10 +206,12 @@ await test('Daily quest: 3 completions make a gold day, celebrate, and extend th
   await page.goto(`${BASE}/`)
   await ready(page)
   await pickPet(page)
-  for (const name of ['Complete Create an outline and thesis', 'Complete Email Prof. Reyes about midterm room conflict', 'Complete Make flashcards for chapters 6–7']) {
+  const names = ['Complete Create an outline and thesis', 'Complete Email Prof. Reyes about midterm room conflict', 'Complete Make flashcards for chapters 6–7']
+  for (const [i, name] of names.entries()) {
     await page.getByRole('checkbox', { name }).click()
-    await page.waitForTimeout(250)
+    if (i < names.length - 1) await dismissCelebrations(page) // badges like Night Owl, depending on the hour
   }
+  for (let i = 0; i < 4 && !(await page.getByRole('heading', { name: 'Quest complete!' }).count()); i++) await keepGoing(page)
   await page.getByRole('heading', { name: 'Quest complete!' }).waitFor()
   await keepGoing(page)
   await page.getByText('Quest complete! Today is a gold day.').waitFor()
@@ -236,15 +247,6 @@ await test('6. Boss stages: open in place, suggest, clear and add stages', async
   await details.getByText('Stages · 1 / 6').waitFor()
   assert(page.url() === `${BASE}/`, `navigated away: ${page.url()}`)
 })
-
-// Finishing late work can unlock a badge or the daily quest; close any celebration that pops up.
-const dismissCelebrations = async (page) => {
-  await page.waitForTimeout(1200)
-  while (await page.getByRole('button', { name: /Keep going|Nice!/ }).count()) {
-    await keepGoing(page)
-    await page.waitForTimeout(800)
-  }
-}
 
 await test('Pet: pick and name a pet; its mood follows late work', async (page) => {
   await page.goto(`${BASE}/`)
@@ -289,6 +291,26 @@ await test('Rescue plan: appears for 2+ late, smallest first, and pays a bonus w
   assert(!(await rescue.count()), 'rescue plan still shown')
   const bonus = await page.evaluate(() => JSON.parse(localStorage.getItem('campusflow:v1')).state.xpEvents.filter((e) => e.kind === 'rescue'))
   assert(bonus.length === 1 && bonus[0].amount === 50, `rescue bonus: ${JSON.stringify(bonus)}`)
+})
+
+await test('Courses → All assignments: every assignment by due date, check off anything', async (page) => {
+  await page.goto(`${BASE}/`)
+  await ready(page)
+  await page.getByRole('button', { name: 'See all assignments' }).click()
+  const all = page.getByTestId('all-assignments')
+  await all.waitFor()
+  // Groups are in due-date order: late days first (in red), then today, then later.
+  const labels = await all.locator('section').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')))
+  assert(labels.indexOf('Today') > -1 && labels.indexOf('Tomorrow') > labels.indexOf('Today'), `order: ${labels}`)
+  await all.getByText('Problem Set 7: Lagrange Multipliers').waitFor()
+  await all.getByRole('checkbox', { name: 'Complete Problem Set 7: Lagrange Multipliers' }).click()
+  await dismissCelebrations(page)
+  await all.getByText('Problem Set 7: Lagrange Multipliers').waitFor({ state: 'detached', timeout: 5000 })
+  // Everything shows finished work too, and it can be unchecked.
+  await all.getByRole('radio', { name: 'Everything' }).click()
+  await all.getByRole('checkbox', { name: 'Undo Problem Set 7: Lagrange Multipliers' }).waitFor()
+  await all.getByRole('combobox', { name: 'Class' }).selectOption({ label: 'Writing & Rhetoric' })
+  assert(!(await all.getByText('Problem Set 7').count()), 'class filter not applied')
 })
 
 await test('Old links land on the matching tab', async (page) => {

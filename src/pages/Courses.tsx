@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
-import { formatDistanceToNowStrict } from 'date-fns'
-import { AlertTriangle, Archive, ArchiveRestore, ChevronDown, ExternalLink, Eye, EyeOff, Megaphone, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
+import { differenceInCalendarDays, format, formatDistanceToNowStrict, isToday, isTomorrow, isYesterday } from 'date-fns'
+import { AlertTriangle, Archive, ArchiveRestore, ChevronDown, ExternalLink, Eye, EyeOff, Megaphone, MoreHorizontal, Pencil, Plus, SkipForward, Trash2 } from 'lucide-react'
 import { isAssignmentDone, isAssignmentOverdue } from '@/domain/assignments'
 import { formatDueDay, parseInstant } from '@/domain/dates'
 import { letterGrade, missingImpact, requiredForTarget, summarizeCourseGrades } from '@/domain/grades'
@@ -10,9 +10,12 @@ import type { Course, CourseStatus } from '@/domain/types'
 import { useNow } from '@/hooks/useNow'
 import { useStore } from '@/store/appStore'
 import { toast, useUi } from '@/store/ui'
-import { COURSE_ICON, courseColor } from '@/components/course'
+import { COURSE_ICON, CourseDot, courseColor } from '@/components/course'
+import { xpForAssignmentNow } from '@/domain/game'
+import { completeAssignment, skipAssignment, useLinger } from '@/game/actions'
+import { Badge } from '@/components/ui/Badge'
 import { CourseForm } from '@/components/forms/CourseForm'
-import { Ring } from '@/components/game/GameUI'
+import { CheckButton, Ring, XpChip } from '@/components/game/GameUI'
 import { Page, PageHeader, usePageTitle } from '@/components/Page'
 import { Button, IconButton } from '@/components/ui/Button'
 import { confirm, Dialog } from '@/components/ui/Dialog'
@@ -57,6 +60,7 @@ export function Courses() {
   const [filter, setFilter] = useState<CourseStatus>('active')
   const [adding, setAdding] = useState(false)
   const [openId, setOpenId] = useState<string | null>(null)
+  const [view, setView] = useState<'classes' | 'all'>(() => (params.get('view') === 'all' ? 'all' : 'classes'))
 
   useEffect(() => {
     if (params.get('new') === '1') {
@@ -71,13 +75,20 @@ export function Courses() {
     <Page className="max-w-3xl">
       <PageHeader
         title="Courses"
-        description="Tap a class to see how it’s going."
+        description={view === 'all' ? 'Every assignment, in order of due date. Check off anything.' : 'Tap a class to see how it’s going.'}
         actions={
-          <Button variant="primary" icon={Plus} onClick={() => setAdding(true)}>
-            Add class
-          </Button>
+          view === 'classes' && (
+            <Button variant="primary" icon={Plus} onClick={() => setAdding(true)}>
+              Add class
+            </Button>
+          )
         }
       />
+      <Segmented className="mb-4" label="View" value={view} onChange={setView} options={[{ value: 'classes', label: 'Classes' }, { value: 'all', label: 'All assignments' }]} />
+      {view === 'all' ? (
+        <AllAssignments />
+      ) : (
+        <>
       {courses.some((c) => c.status !== 'active') && (
         <Segmented className="mb-4" label="Show" value={filter} onChange={setFilter} options={[{ value: 'active', label: 'Current' }, { value: 'completed', label: 'Finished' }, { value: 'archived', label: 'Archived' }]} />
       )}
@@ -96,6 +107,8 @@ export function Courses() {
             <CourseCard key={c.id} c={c} index={i} open={openId === c.id} onToggle={() => setOpenId((o) => (o === c.id ? null : c.id))} />
           ))}
         </ul>
+      )}
+        </>
       )}
       <Dialog
         open={adding}
@@ -243,5 +256,101 @@ function CourseCard({ c, index, open, onToggle }: { c: Course; index: number; op
         )}
       </AnimatePresence>
     </motion.li>
+  )
+}
+
+/** Every assignment from every class in one list, by due date, to check off right here. */
+function AllAssignments() {
+  const now = useNow(30_000)
+  const assignments = useStore((s) => s.assignments)
+  const courses = useStore((s) => s.courses)
+  const tasks = useStore((s) => s.tasks)
+  const [show, setShow] = useState<'todo' | 'all'>('todo')
+  const [courseId, setCourseId] = useState<string>('any')
+  const { lingering, linger } = useLinger(1100)
+  const courseMap = new Map(courses.map((c) => [c.id, c]))
+  const active = courses.filter((c) => c.status === 'active')
+
+  const list = assignments
+    .filter((a) => courseId === 'any' || a.courseId === courseId)
+    .filter((a) => show === 'all' || !isAssignmentDone(a) || lingering.has(a.id))
+    .sort((x, y) => (x.dueAt ?? '9999').localeCompare(y.dueAt ?? '9999') || x.title.localeCompare(y.title))
+  const groups: Array<{ key: string; label: string; late: boolean; items: typeof list }> = []
+  for (const a of list) {
+    const due = parseInstant(a.dueAt)
+    const key = due ? format(due, 'yyyy-MM-dd') : 'none'
+    let g = groups.find((x) => x.key === key)
+    if (!g) {
+      const label = !due ? 'No due date' : isToday(due) ? 'Today' : isTomorrow(due) ? 'Tomorrow' : isYesterday(due) ? 'Yesterday' : format(due, differenceInCalendarDays(due, now) > 180 || differenceInCalendarDays(now, due) > 180 ? 'EEEE, MMM d, yyyy' : 'EEEE, MMM d')
+      g = { key, label, late: !!due && due < now && !isToday(due), items: [] }
+      groups.push(g)
+    }
+    g.items.push(a)
+  }
+  const openCount = assignments.filter((a) => (courseId === 'any' || a.courseId === courseId) && !isAssignmentDone(a)).length
+
+  return (
+    <div className="flex flex-col gap-4" data-testid="all-assignments">
+      <div className="flex flex-wrap items-center gap-2">
+        <Segmented label="Show" value={show} onChange={setShow} options={[{ value: 'todo', label: `To do · ${openCount}` }, { value: 'all', label: 'Everything' }]} />
+        <select aria-label="Class" value={courseId} onChange={(e) => setCourseId(e.target.value)} className="h-10 rounded-xl border-2 border-line bg-surface px-3 text-sm font-extrabold">
+          <option value="any">All classes</option>
+          {active.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      {groups.length === 0 ? (
+        <div className="card-3d px-6 py-10 text-center">
+          <p className="text-lg font-black">{show === 'todo' ? 'Nothing left to do 🎉' : 'No assignments yet'}</p>
+        </div>
+      ) : (
+        groups.map((g) => (
+          <section key={g.key} aria-label={g.label}>
+            <h2 className={cn('mb-2 text-xs font-black tracking-[0.12em] uppercase', g.late ? 'text-danger' : 'text-fg-3')}>{g.label}</h2>
+            <ul className="card-3d divide-y-2 divide-line overflow-hidden">
+              <AnimatePresence initial={false}>
+                {g.items.map((a) => {
+                  const done = isAssignmentDone(a)
+                  const late = !done && isAssignmentOverdue(a, now)
+                  const missing = a.canvasSubmission?.state === 'missing' && !done
+                  const course = courseMap.get(a.courseId)
+                  const due = parseInstant(a.dueAt)
+                  return (
+                    <motion.li key={a.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, height: 0 }} className={cn('flex items-center gap-3 px-3 py-2.5 sm:px-4', done && 'bg-success-soft/60')}>
+                      <CheckButton
+                        checked={done}
+                        label={done ? `Undo ${a.title}` : `Complete ${a.title}`}
+                        onToggle={(el) => {
+                          if (!done) linger(a.id)
+                          completeAssignment(a, el)
+                        }}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className={cn('block truncate font-extrabold', done && 'text-fg-3 line-through')}>{a.title}</span>
+                        <span className="flex items-center gap-1.5 truncate text-xs font-bold text-fg-3">
+                          <CourseDot color={course?.color} className="size-2" />
+                          <span className="truncate">{course?.name ?? 'Class'}</span>
+                          {due && <span className="shrink-0">· {format(due, 'h:mm a')}</span>}
+                        </span>
+                      </span>
+                      {missing ? <Badge tone="danger">Missing</Badge> : late ? <Badge tone="danger">Late</Badge> : null}
+                      {!done && <XpChip amount={xpForAssignmentNow(a, tasks, now)} className="max-sm:hidden" />}
+                      {!done && (
+                        <button type="button" onClick={() => skipAssignment(a)} aria-label={`Skip ${a.title}`} title="Skip: remove from CampusFlow" data-sfx="none" className="grid size-8 shrink-0 place-items-center rounded-lg text-fg-3 hover:bg-surface-2 hover:text-fg">
+                          <SkipForward className="size-4" strokeWidth={2.5} aria-hidden />
+                        </button>
+                      )}
+                    </motion.li>
+                  )
+                })}
+              </AnimatePresence>
+            </ul>
+          </section>
+        ))
+      )}
+    </div>
   )
 }
