@@ -14,6 +14,7 @@ import { COURSE_ICON, CourseDot, courseColor } from '@/components/course'
 import { xpForAssignmentNow } from '@/domain/game'
 import { completeAssignment, skipAssignment, useLinger } from '@/game/actions'
 import { Badge } from '@/components/ui/Badge'
+import { LockTag } from '@/components/LockTag'
 import { CourseForm } from '@/components/forms/CourseForm'
 import { CheckButton, Ring, XpChip } from '@/components/game/GameUI'
 import { Page, PageHeader, usePageTitle } from '@/components/Page'
@@ -218,8 +219,9 @@ function CourseCard({ c, index, open, onToggle }: { c: Course; index: number; op
                 {upcoming.length ? (
                   <ul className="flex flex-col gap-1 text-sm font-bold">
                     {upcoming.slice(0, 3).map((a) => (
-                      <li key={a.id} className="flex justify-between gap-3">
+                      <li key={a.id} className="flex items-center justify-between gap-3">
                         <span className="truncate">{a.title}</span>
+                        <LockTag a={a} now={now} className="ml-auto" />
                         <span className="shrink-0 text-fg-3">{formatDueDay(a.dueAt, now)}</span>
                       </li>
                     ))}
@@ -336,6 +338,7 @@ function AllAssignments() {
                           {due && <span className="shrink-0">· {format(due, 'h:mm a')}</span>}
                         </span>
                       </span>
+                      <LockTag a={a} now={now} />
                       {missing ? <Badge tone="danger">Missing</Badge> : late ? <Badge tone="danger">Late</Badge> : null}
                       {!done && <XpChip amount={xpForAssignmentNow(a, tasks, now)} className="max-sm:hidden" />}
                       {!done && (

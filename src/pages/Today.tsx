@@ -18,6 +18,7 @@ import { CheckButton, LevelBadge, XpChip } from '@/components/game/GameUI'
 import { PetCard } from '@/components/game/PetCard'
 import { RescueCard } from '@/components/game/RescueCard'
 import { AssignmentDetails, TaskDetails } from '@/components/QuestDetails'
+import { LockTag } from '@/components/LockTag'
 import { Page, usePageTitle } from '@/components/Page'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/components/ui/cn'
@@ -249,6 +250,7 @@ function QuestRow({ item, now, course, parent, tasks, late, open, onDone, onOpen
             <span className={cn('shrink-0 sm:hidden', overdue && !done ? 'text-danger' : 'text-fg-3')}>· {when}</span>
           </span>
         </button>
+        {isA && <LockTag a={item.a} now={now} className="relative" />}
         {boss && !done && <Crown className="relative hidden size-5 shrink-0 fill-accent/20 text-accent sm:block" aria-label="Boss level" />}
         <XpChip amount={xp} tone={boss ? 'purple' : done ? 'muted' : 'gold'} className="relative max-sm:hidden" />
         <span className={cn('relative hidden w-28 shrink-0 text-right text-sm font-extrabold sm:block', overdue && !done ? 'text-danger' : 'text-fg-2')}>{done ? 'Done!' : when}</span>

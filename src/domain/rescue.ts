@@ -1,5 +1,5 @@
 import { addDays, compareAsc } from 'date-fns'
-import { isAssignmentDone, isAssignmentOverdue } from './assignments'
+import { isAssignmentDone, isAssignmentOverdue, lockState } from './assignments'
 import { parseInstant, toLocalDay } from './dates'
 import type { Assignment, ID, LocalDay } from './types'
 
@@ -26,8 +26,9 @@ export interface RescueStep {
   done: boolean
 }
 
+/** Late work that can still be turned in (closed assignments can't be rescued). */
 export function lateOpen(assignments: Assignment[], now: Date): Assignment[] {
-  return assignments.filter((a) => !isAssignmentDone(a) && isAssignmentOverdue(a, now))
+  return assignments.filter((a) => !isAssignmentDone(a) && isAssignmentOverdue(a, now) && lockState(a, now)?.kind !== 'closed')
 }
 
 /** Order for a new plan: smallest first, then longest late. */

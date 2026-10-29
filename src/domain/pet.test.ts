@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { XpEvent } from './game'
 import { petMood, petStage } from './pet'
 import { lateOpen, rescueOrder, rescueSteps } from './rescue'
+import { lockState } from './assignments'
 import type { Assignment } from './types'
 
 const NOW = new Date(2026, 9, 28, 15, 0)
@@ -49,5 +50,19 @@ describe('rescue plan', () => {
       ['done', true, 0],
       ['small', false, 1],
     ])
+  })
+})
+
+describe('locks', () => {
+  it('knows when work opens and when it closes', () => {
+    expect(lockState(a({ unlockAt: at(2) }), NOW)?.kind).toBe('opens')
+    expect(lockState(a({ lockAt: at(-1) }), NOW)?.kind).toBe('closed')
+    expect(lockState(a({ lockAt: at(1) }), NOW)).toBeNull()
+    expect(lockState(a({ lockedForUser: true, lockExplanation: 'Locked by teacher' }), NOW)).toMatchObject({ kind: 'closed', why: 'Locked by teacher' })
+    expect(lockState(a({}), NOW)).toBeNull()
+  })
+  it('keeps closed work out of the Rescue plan', () => {
+    const list = [a({ id: 'open', dueAt: at(-1), lockAt: at(2) }), a({ id: 'closed', dueAt: at(-3), lockAt: at(-1) })]
+    expect(lateOpen(list, NOW).map((x) => x.id)).toEqual(['open'])
   })
 })

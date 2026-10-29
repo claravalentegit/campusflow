@@ -79,3 +79,18 @@ export function filterAssignments(list: Assignment[], f: AssignmentFilter, now: 
     return true
   })
 }
+
+export type LockState = { kind: 'opens'; at: Date } | { kind: 'closed'; at: Date | null; why: string | null } | null
+
+/**
+ * Canvas availability. "opens": not available yet. "closed": the lock date passed (or Canvas locked it),
+ * so nothing can be turned in anymore. null: open.
+ */
+export function lockState(a: Pick<Assignment, 'unlockAt' | 'lockAt' | 'lockedForUser' | 'lockExplanation'>, now: Date): LockState {
+  const unlock = parseInstant(a.unlockAt ?? null)
+  if (unlock && now < unlock) return { kind: 'opens', at: unlock }
+  const lock = parseInstant(a.lockAt ?? null)
+  if (lock && now >= lock) return { kind: 'closed', at: lock, why: a.lockExplanation ?? null }
+  if (a.lockedForUser) return { kind: 'closed', at: null, why: a.lockExplanation ?? null }
+  return null
+}

@@ -303,6 +303,9 @@ await test('Courses → All assignments: every assignment by due date, check off
   const labels = await all.locator('section').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')))
   assert(labels.indexOf('Today') > -1 && labels.indexOf('Tomorrow') > labels.indexOf('Today'), `order: ${labels}`)
   await all.getByText('Problem Set 7: Lagrange Multipliers').waitFor()
+  // Locked work is marked: closed (can't turn in anymore) and not open yet.
+  await all.locator('li').filter({ hasText: 'Reflection Journal 4' }).getByText('Closed').waitFor()
+  await all.locator('li').filter({ hasText: 'Midterm 2' }).getByText(/^Opens /).waitFor()
   await all.getByRole('checkbox', { name: 'Complete Problem Set 7: Lagrange Multipliers' }).click()
   await dismissCelebrations(page)
   await all.getByText('Problem Set 7: Lagrange Multipliers').waitFor({ state: 'detached', timeout: 5000 })
@@ -416,6 +419,7 @@ await test('Canvas: connect with an access token, import classes, and sync on To
   assert(!(await page.getByText('Calculus III').count()), 'demo data still present')
   const late = page.getByRole('region', { name: /^Late ·/ })
   await late.getByText('Discussion: Social Norms').waitFor()
+  await late.locator('li').filter({ hasText: 'Discussion: Social Norms' }).getByText('Closed').waitFor()
   // Submitting on Canvas earns XP on the next sync.
   const before = await xp(page)
   await fetch(`${MOCK}/__test/submit/9101`, { method: 'POST' })

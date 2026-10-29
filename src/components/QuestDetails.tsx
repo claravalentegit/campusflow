@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { format } from 'date-fns'
-import { ExternalLink, Pencil, Plus, SkipForward, Timer, Trash2, Wand2, X } from 'lucide-react'
+import { ExternalLink, Lock, Pencil, Plus, SkipForward, Timer, Trash2, Wand2, X } from 'lucide-react'
+import { lockText } from '@/components/LockTag'
 import { isAssignmentDone, tasksForAssignment } from '@/domain/assignments'
 import { parseInstant } from '@/domain/dates'
 import { xpForTaskNow } from '@/domain/game'
@@ -34,6 +35,7 @@ export function AssignmentDetails({ a, now }: { a: Assignment; now: Date }) {
   const nextStep = steps.find((s) => !s.done)
   const done = isAssignmentDone(a)
   const due = parseInstant(a.dueAt)
+  const lock = lockText(a, now)
 
   const clear = (t: StudyTask, el: HTMLElement) => {
     if (!t.done) {
@@ -56,6 +58,12 @@ export function AssignmentDetails({ a, now }: { a: Assignment; now: Date }) {
         {due ? `Due ${format(due, 'EEEE, MMM d · h:mm a')}` : 'No due date'}
         {a.pointsPossible != null && ` · ${a.pointsPossible} points`}
       </p>
+      {lock && (
+        <p className={cn('flex items-start gap-2 rounded-xl px-3 py-2 text-sm font-bold', lock.closed ? 'bg-surface-2 text-fg-2' : 'bg-[#e7f0ff] text-[#2f5fcf]')} data-testid="lock-notice">
+          <Lock className="mt-0.5 size-4 shrink-0" aria-hidden />
+          {lock.detail}
+        </p>
+      )}
       {a.description && <p className="line-clamp-4 text-sm leading-relaxed font-semibold whitespace-pre-line text-fg-2">{a.description}</p>}
 
       <section aria-label="Stages">

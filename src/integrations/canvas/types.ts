@@ -32,6 +32,12 @@ export interface CanvasRawAssignment {
   assignment_group_id?: number | null
   is_quiz_assignment?: boolean
   submission?: CanvasRawSubmission | null
+  /** When it opens for students (null = already open). */
+  unlock_at?: string | null
+  /** When it closes; after this nothing can be turned in (null = never). */
+  lock_at?: string | null
+  locked_for_user?: boolean
+  lock_explanation?: string | null
 }
 
 export interface CanvasRawAssignmentGroup {

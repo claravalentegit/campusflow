@@ -26,11 +26,11 @@ export function startMockCanvas(port = 8898) {
     501: [
       { id: 9001, name: 'Homework 6: Eigenvalues', description: '<p>Problems 1–12 from section 5.2.</p>', due_at: day(1, 17, 0), points_possible: 20, submission_types: ['online_upload'], assignment_group_id: 1, submission: sub('unsubmitted') },
       { id: 9002, name: 'Homework 5: Determinants', description: '<p>Section 3.1–3.3.</p>', due_at: day(-5, 17, 0), points_possible: 20, submission_types: ['online_upload'], assignment_group_id: 1, submission: sub('graded', { score: 18, graded_at: day(-2, 9) }) },
-      { id: 9003, name: 'Midterm Exam', description: '<p>Chapters 1–5. Calculator allowed.</p>', due_at: day(9, 10, 0), points_possible: 100, submission_types: ['on_paper'], assignment_group_id: 2, submission: sub('unsubmitted') },
+      { id: 9003, name: 'Midterm Exam', description: '<p>Chapters 1–5. Calculator allowed.</p>', due_at: day(9, 10, 0), unlock_at: day(9, 8, 0), locked_for_user: true, points_possible: 100, submission_types: ['on_paper'], assignment_group_id: 2, submission: sub('unsubmitted') },
     ],
     502: [
       { id: 9101, name: 'Reading Response: Durkheim', description: '<p>500 words on <em>Suicide</em>, chapter 2.</p>', due_at: day(0, 23, 59), points_possible: 10, submission_types: ['online_text_entry'], assignment_group_id: 3, submission: sub('unsubmitted') },
-      { id: 9102, name: 'Discussion: Social Norms', description: null, due_at: day(-1, 23, 59), points_possible: 5, submission_types: ['discussion_topic'], assignment_group_id: 3, submission: { workflow_state: 'unsubmitted', submitted_at: null, missing: true } },
+      { id: 9102, name: 'Discussion: Social Norms', description: null, due_at: day(-1, 23, 59), lock_at: day(0, 0, 0), locked_for_user: true, lock_explanation: 'This discussion was locked Midnight.', points_possible: 5, submission_types: ['discussion_topic'], assignment_group_id: 3, submission: { workflow_state: 'unsubmitted', submitted_at: null, missing: true } },
     ],
     503: [
       { id: 9201, name: 'Lab Report 3: Distillation', description: '<p>Full report with error analysis.</p>', due_at: day(4, 17, 0), points_possible: 40, submission_types: ['online_upload'], assignment_group_id: 4, submission: sub('unsubmitted') },

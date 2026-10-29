@@ -10,6 +10,7 @@ import { useStore } from '@/store/appStore'
 import { useUi } from '@/store/ui'
 import { completeAssignment, skipAssignment } from '@/game/actions'
 import { CourseDot } from '@/components/course'
+import { LockTag } from '@/components/LockTag'
 import { CheckButton, ProgressBar, XpChip } from '@/components/game/GameUI'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/components/ui/cn'
@@ -73,6 +74,7 @@ export function RescueCard() {
                   {course?.code || course?.name} · {formatMinutes(s.minutes)}
                   {s.days.length > 0 && ` · ${s.days.map((d) => dayLabel(d, now)).join(' + ')}`}
                 </span>
+                <LockTag a={a} now={now} className="mt-0.5" />
               </span>
               {!s.done && <XpChip amount={xpForAssignmentNow(a, tasks, now)} />}
               {!s.done && (

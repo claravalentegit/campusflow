@@ -175,6 +175,12 @@ export interface Assignment {
   canvasId: string | null
   /** Canvas URL of the assignment, when synced. */
   htmlUrl: string | null
+  /** Canvas availability: opens at unlockAt, closes at lockAt (no more submissions). */
+  unlockAt?: ISODateTime | null
+  lockAt?: ISODateTime | null
+  /** Canvas says it's locked for this student right now. */
+  lockedForUser?: boolean
+  lockExplanation?: string | null
   completedAt: ISODateTime | null
   createdAt: ISODateTime
   updatedAt: ISODateTime

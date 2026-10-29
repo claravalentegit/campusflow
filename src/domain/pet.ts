@@ -1,4 +1,4 @@
-import { isAssignmentDone, isAssignmentOverdue } from './assignments'
+import { lateOpen } from './rescue'
 import type { XpEvent } from './game'
 import type { Assignment } from './types'
 
@@ -46,9 +46,10 @@ export type PetMood = 'happy' | 'ok' | 'worried' | 'sleepy'
 
 const DAY = 86_400_000
 
-/** Worried with 2+ late, okay with 1, sleepy after 2 quiet days, otherwise happy. */
+/** Worried with 2+ late (that can still be turned in), okay with 1, sleepy after 2 quiet days, otherwise happy. */
 export function petMood(assignments: Assignment[], events: XpEvent[], now: Date): { mood: PetMood; late: number } {
-  const late = assignments.filter((a) => !isAssignmentDone(a) && isAssignmentOverdue(a, now)).length
+  // Only late work that can still be turned in: closed work can't be fixed, so it shouldn't worry the pet forever.
+  const late = lateOpen(assignments, now).length
   if (late >= 2) return { mood: 'worried', late }
   if (late === 1) return { mood: 'ok', late }
   const last = events.filter((e) => e.kind === 'assignment' || e.kind === 'task').reduce((m, e) => Math.max(m, new Date(e.at).getTime()), 0)

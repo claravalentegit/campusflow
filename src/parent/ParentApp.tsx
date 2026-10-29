@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { differenceInCalendarDays, format, formatDistanceToNowStrict, isSameDay } from 'date-fns'
 import { ChevronDown, Flame, Globe, Lightbulb, LogOut, Megaphone, UserPlus } from 'lucide-react'
-import { isAssignmentDone, isAssignmentOverdue } from '@/domain/assignments'
+import { isAssignmentDone, isAssignmentOverdue, lockState } from '@/domain/assignments'
 import { parseInstant } from '@/domain/dates'
 import { letterGrade, summarizeCourseGrades } from '@/domain/grades'
 import type { Course, GradeRecord } from '@/domain/types'
@@ -282,8 +282,11 @@ function status(a: Item, grades: GradeRecord[], now: Date, t: Strings, lang: Lan
   }
   const sub = a.canvasSubmission?.state
   if (sub === 'submitted' || sub === 'graded' || sub === 'pending_review') return { text: t.waitingGrade, tone: 'blue', late: false }
-  if (sub === 'missing') return { text: t.missing, tone: 'red', late: true }
   if (isAssignmentDone(a)) return { text: t.markedDone, tone: 'green', late: false }
+  const lock = lockState(a, now)
+  if (lock?.kind === 'opens') return { text: fill(t.opens, { date: format(lock.at, 'EEE MMM d', { locale: DATE_LOCALE[lang] }) }), tone: 'blue', late: false }
+  if (lock?.kind === 'closed') return { text: `🔒 ${t.closed}`, tone: 'gray', late: isAssignmentOverdue(a, now) || sub === 'missing' }
+  if (sub === 'missing') return { text: t.missing, tone: 'red', late: true }
   if (isAssignmentOverdue(a, now)) return { text: t.late, tone: 'red', late: true }
   if (due && isSameDay(due, now)) return { text: t.dueToday, tone: 'gold', late: false }
   if (!due) return { text: t.noDate, tone: 'gray', late: false }
