@@ -155,6 +155,16 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL) {
     rateLimit(`parent-view:${clientIp(req)}`, 120, 60_000)
     return json(res, 200, await fam.parentView(parseCookies(req)[PARENT_COOKIE], view[1]))
   }
+  const goals = /^\/api\/parent\/students\/([A-Za-z0-9]{24})\/goals(?:\/([A-Za-z0-9_-]{6,24}))?$/.exec(path)
+  if (goals && method === 'POST') {
+    assertCsrfSafe(req)
+    rateLimit(`parent-goals:${clientIp(req)}`, 30, 60_000)
+    const body = await readJsonBody<{ goal?: unknown; action?: unknown; today?: unknown }>(req)
+    const today = typeof body.today === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.today) ? body.today : new Date().toISOString().slice(0, 10)
+    const token = parseCookies(req)[PARENT_COOKIE]
+    const list = goals[2] ? await fam.updateGoal(token, goals[1], goals[2], body.action) : await fam.addGoal(token, goals[1], body.goal, today)
+    return json(res, 200, { goals: list })
+  }
   const guide = /^\/api\/parent\/students\/([A-Za-z0-9]{24})\/guide-done$/.exec(path)
   if (guide && method === 'POST') {
     assertCsrfSafe(req)

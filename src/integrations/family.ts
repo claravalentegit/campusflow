@@ -3,6 +3,7 @@ import { levelFor, streak, totalXp } from '@/domain/game'
 import type { Announcement, Assignment, Course, GradeRecord } from '@/domain/types'
 import { call } from '@/integrations/canvas/adapter'
 import { useStore, type AppState } from '@/store/appStore'
+import type { RewardGoal } from '@/domain/goals'
 
 /**
  * Family sharing, the student's side. The student links parent devices with a code; their app then
@@ -30,7 +31,7 @@ export interface FamilySnapshot {
 }
 
 export const familyApi = {
-  overview: () => call<{ parents: ParentLink[]; snapshotAt: string | null }>('/api/family'),
+  overview: () => call<{ parents: ParentLink[]; snapshotAt: string | null; goals: RewardGoal[] }>('/api/family'),
   createCode: () => call<{ code: string; expiresAt: number }>('/api/family/code', { method: 'POST', body: '{}' }),
   remove: (parentId: string) => call<{ parents: ParentLink[] }>('/api/family/remove', { method: 'POST', body: JSON.stringify({ parentId }) }),
   upload: (data: FamilySnapshot) => call<{ stored: boolean; parents: number }>('/api/family/snapshot', { method: 'POST', body: JSON.stringify({ data }) }),
@@ -43,7 +44,8 @@ export function buildSnapshot(s: AppState, now = new Date()): FamilySnapshot {
     return steps.length ? { done: steps.filter((t) => t.done).length, total: steps.length } : undefined
   }
   const strip = (a: Assignment) => ({ ...a, personalNotes: '', description: a.description.slice(0, 600) })
-  const since = now.getTime() - 14 * 86_400_000
+  // 120 days, so reward goals set by a parent can count long streaks.
+  const since = now.getTime() - 120 * 86_400_000
   return {
     v: 1,
     student: { name: s.prefs.displayName || 'Student', level: levelFor(xp).level, xp, streak: streak(s.xpEvents, now, s.prefs.dailyGoal).days, dailyGoal: s.prefs.dailyGoal, pet: s.prefs.pet?.name ?? null },
@@ -86,6 +88,30 @@ export function useFamilySync() {
     return () => {
       unsub()
       clearTimeout(timer.current)
+    }
+  }, [on])
+}
+
+/** Reward goals from linked parents: fetched now and then, cached, and celebrated once when reached. */
+export function useFamilyGoals() {
+  const on = useStore((s) => s.prefs.dataMode === 'canvas' && s.prefs.familySharing)
+  useEffect(() => {
+    if (!on) return
+    const load = async () => {
+      try {
+        const o = await familyApi.overview()
+        useStore.getState().updatePrefs({ familyGoals: o.goals ?? [] })
+      } catch {
+        /* offline: keep the cached goals */
+      }
+    }
+    void load()
+    const id = setInterval(load, 10 * 60_000)
+    const onVisible = () => document.visibilityState === 'visible' && void load()
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', onVisible)
     }
   }, [on])
 }

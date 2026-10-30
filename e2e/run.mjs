@@ -538,6 +538,41 @@ await test('Family: a parent links with a code, sees everything in plain words, 
   await view.getByText('18 / 20', { exact: false }).waitFor()
   await view.getByText('Midterm review session Thursday').waitFor()
 
+  // Rewards: the parent sets goals with a real-life reward; progress comes from the student's work.
+  await view.getByRole('tab', { name: 'Rewards' }).click()
+  const rewards = parent.getByTestId('parent-rewards')
+  await rewards.getByRole('button', { name: 'New goal' }).click()
+  await rewards.getByRole('radio', { name: /Every day/ }).waitFor()
+  await rewards.getByRole('radio', { name: '🎬' }).click()
+  await rewards.getByLabel('The reward', { exact: true }).fill('Movie night')
+  await rewards.getByText('Finish at least 2 a day, 15 school days in a row').waitFor()
+  await rewards.getByRole('button', { name: 'Set goal' }).click()
+  await rewards.getByTestId('reward-goal').filter({ hasText: 'Movie night' }).getByText(/of 15 days in a row/).waitFor()
+  await rewards.getByRole('button', { name: 'New goal' }).click()
+  await rewards.getByRole('radio', { name: /A class grade/ }).click()
+  await rewards.getByRole('combobox').selectOption({ label: 'Linear Algebra' })
+  await rewards.getByRole('radio', { name: '70%' }).click()
+  await rewards.getByLabel('The reward', { exact: true }).fill('$20')
+  await rewards.getByRole('button', { name: 'Set goal' }).click()
+  await rewards.getByText('Jordan reached it! 🎉').waitFor()
+  await view.getByRole('tab', { name: 'Rewards' }).getByText('🎁').waitFor()
+  await parent.screenshot({ path: join(shots, 'family-rewards.png'), fullPage: true })
+
+  // The student sees both goals on Today, and the reached one is celebrated.
+  await page.goto(`${BASE}/`)
+  const studentGoals = page.getByTestId('reward-goals')
+  await studentGoals.getByText('You earned it! Mom will give you: $20').waitFor()
+  await studentGoals.getByText('Movie night').waitFor()
+  await page.getByText('You earned a reward from Mom: 💵 $20!').waitFor()
+  await studentGoals.screenshot({ path: join(shots, 'student-rewards.png') })
+
+  // The parent gives the reward and says so; the student sees it.
+  await rewards.getByRole('button', { name: 'I gave the reward' }).click()
+  await rewards.getByText('Reward given ✓').waitFor()
+  await page.reload()
+  await page.getByTestId('reward-goals').getByText('Mom gave you this reward').waitFor()
+  await page.goto(`${BASE}/me#family`)
+
   // The weekly guide: one card at a time, until done. The student is told.
   await view.getByRole('tab', { name: 'Guide' }).click()
   const guide = parent.getByTestId('parent-guide')

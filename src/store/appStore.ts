@@ -52,6 +52,8 @@ export const DEFAULT_PREFS: Preferences = {
   familySharing: false,
   planDone: [],
   language: 'en',
+  familyGoals: [],
+  goalsCelebrated: [],
 }
 
 function freshDemo(prefs: Preferences) {

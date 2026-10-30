@@ -17,6 +17,8 @@ import { confirm, ConfirmHost, Dialog } from '@/components/ui/Dialog'
 import { LanguagePicker } from '@/components/LanguagePicker'
 import { isLang } from '@/i18n/langs'
 import { ParentGuide } from './ParentGuide'
+import { ParentRewards } from './ParentRewards'
+import { goalProgress, type RewardGoal } from '@/domain/goals'
 import { Toaster } from '@/components/ui/Toaster'
 import { cn } from '@/components/ui/cn'
 import { DATE_LOCALE, fill, STRINGS, type Lang, type Strings } from './i18n'
@@ -34,6 +36,8 @@ interface View {
   studentName: string
   updatedAt: string | null
   data: FamilySnapshot | null
+  goals?: RewardGoal[]
+  parentId?: string
 }
 type Item = FamilySnapshot['assignments'][number]
 
@@ -301,10 +305,13 @@ function status(a: Item, grades: GradeRecord[], now: Date, t: Strings, lang: Lan
   return { text: format(due, 'EEE MMM d', { locale: DATE_LOCALE[lang] }), tone: 'gray', late: false }
 }
 
-type Tab = 'week' | 'guide' | 'classes' | 'all'
+type Tab = 'week' | 'guide' | 'rewards' | 'classes' | 'all'
 
 function StudentView({ t, lang, studentId, name, view, data, tab, setTab }: { t: Strings; lang: Lang; studentId: string; name: string; view: View; data: FamilySnapshot; tab: Tab; setTab: (t: Tab) => void }) {
   const now = useMemo(() => new Date(), [])
+  const [goals, setGoals] = useState<RewardGoal[]>(view.goals ?? [])
+  useEffect(() => setGoals(view.goals ?? []), [view.goals])
+  const rewardsReady = goals.filter((g) => g.status === 'active' && goalProgress(g, data, now).reached).length
   const locale = DATE_LOCALE[lang]
   const courseOf = useMemo(() => new Map(data.courses.map((c) => [c.id, c])), [data.courses])
   const items = data.assignments
@@ -352,10 +359,11 @@ function StudentView({ t, lang, studentId, name, view, data, tab, setTab }: { t:
         <Stat n={doneWeek} label={t.doneWeek} tone="text-success" />
       </div>
 
-      <div role="tablist" className="flex gap-1 rounded-2xl bg-surface-2 p-1">
-        {(['week', 'guide', 'classes', 'all'] as const).map((k) => (
-          <button key={k} role="tab" aria-selected={tab === k} type="button" onClick={() => setTab(k)} className={cn('flex-1 rounded-xl py-2 text-sm font-black', tab === k ? 'bg-surface text-[#0b6b6a] shadow-sm' : 'text-fg-3')}>
+      <div role="tablist" className="grid grid-cols-5 gap-0.5 rounded-2xl bg-surface-2 p-1">
+        {(['week', 'guide', 'rewards', 'classes', 'all'] as const).map((k) => (
+          <button key={k} role="tab" aria-selected={tab === k} type="button" onClick={() => setTab(k)} className={cn('min-w-0 rounded-xl px-0.5 py-2 text-[12px] leading-tight font-black sm:text-sm', tab === k ? 'bg-surface text-[#0b6b6a] shadow-sm' : 'text-fg-3')}>
             {t[k]}
+            {k === 'rewards' && rewardsReady > 0 && <span aria-hidden> 🎁</span>}
           </button>
         ))}
       </div>
@@ -379,6 +387,8 @@ function StudentView({ t, lang, studentId, name, view, data, tab, setTab }: { t:
       )}
 
       {tab === 'guide' && <ParentGuide t={t} lang={lang} name={name} studentId={studentId} data={data} />}
+
+      {tab === 'rewards' && <ParentRewards t={t} lang={lang} name={name} studentId={studentId} parentId={view.parentId ?? null} data={data} goals={goals} onGoals={setGoals} />}
 
       {tab === 'classes' && (
         <ul className="flex flex-col gap-3">

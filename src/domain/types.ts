@@ -338,6 +338,10 @@ export interface Preferences {
   familySharing: boolean
   /** Assignments the student skipped: hidden everywhere in CampusFlow and ignored by future syncs. */
   skipped: SkippedAssignment[]
+  /** Reward goals parents set (cached from the server; the parent's app is the source). */
+  familyGoals: import('./goals').RewardGoal[]
+  /** Reward goals already celebrated as reached. */
+  goalsCelebrated: string[]
   /** App language. English by default. */
   language: 'en' | 'es' | 'pt'
 }

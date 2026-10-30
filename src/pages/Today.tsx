@@ -16,6 +16,7 @@ import { completeAssignment, completeTask, skipAssignment, useLinger } from '@/g
 import { CourseDot } from '@/components/course'
 import { CheckButton, LevelBadge, XpChip } from '@/components/game/GameUI'
 import { PetCard } from '@/components/game/PetCard'
+import { RewardGoals } from '@/components/game/RewardGoals'
 import { GradeGuideCard, HelpButton, useGuide } from '@/components/GradeGuide'
 import { AssignmentDetails, TaskDetails } from '@/components/QuestDetails'
 import { LockTag } from '@/components/LockTag'
@@ -129,6 +130,7 @@ export function Today() {
       </div>
 
       <PetCard />
+      <RewardGoals />
 
       <div className="mt-6 flex flex-col gap-6">
         <GradeGuideCard />

@@ -37,6 +37,26 @@ describe('family sharing', () => {
     await expect(f.guideDone('x'.repeat(40), SID)).rejects.toBeInstanceOf(FamilyError)
   })
 
+  it('lets a linked parent set reward goals, mark them given, and drops them when sharing stops', async () => {
+    const { f } = setup()
+    const { code } = await f.createCode(SID, 'Clara')
+    const { token } = await f.link(code, 'Mom', undefined)
+    const goal = { rule: { kind: 'streak', perDay: 2, days: 15, weekdaysOnly: true }, reward: '  $20 <b>', emoji: '💵', startDay: '2026-10-28' }
+    const [g] = await f.addGoal(token, SID, goal, '2026-10-28')
+    expect(g).toMatchObject({ parentName: 'Mom', reward: '$20 b', status: 'active', rule: { perDay: 2, days: 15 } })
+    expect((await f.overview(SID)).goals).toHaveLength(1)
+    await expect(f.addGoal(token, SID, { ...goal, reward: '' }, '2026-10-28')).rejects.toThrow(/reward/)
+    await expect(f.addGoal(token, SID, { ...goal, rule: { kind: 'streak', perDay: 50, days: 15 } }, '2026-10-28')).rejects.toBeInstanceOf(FamilyError)
+    await expect(f.addGoal('x'.repeat(40), SID, goal, '2026-10-28')).rejects.toBeInstanceOf(FamilyError)
+    const after = await f.updateGoal(token, SID, g.id, 'given')
+    expect(after[0]).toMatchObject({ status: 'given' })
+    await expect(f.updateGoal(token, SID, g.id, 'given')).rejects.toBeInstanceOf(FamilyError)
+    await f.addGoal(token, SID, goal, '2026-10-28')
+    const parentId = (await f.overview(SID)).parents[0].id
+    await f.remove(SID, parentId)
+    expect((await f.overview(SID)).goals).toEqual([])
+  })
+
   it('stores only sealed data', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'cf-kv-'))
     const f = family(memoryKv(join(dir, 'family.json')))

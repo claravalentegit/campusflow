@@ -29,7 +29,7 @@ export function FamilyPanel() {
       const o = await familyApi.overview()
       setParents(o.parents)
       setError(null)
-      update({ familySharing: o.parents.length > 0 })
+      update({ familySharing: o.parents.length > 0, familyGoals: o.goals ?? [] })
       return o.parents
     } catch (e) {
       setError((e as Error).message)
