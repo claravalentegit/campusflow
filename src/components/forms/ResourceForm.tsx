@@ -10,8 +10,11 @@ import { Dialog } from '../ui/Dialog'
 import { Field, Input, Select, Textarea } from '../ui/Field'
 import { Segmented } from '../ui/Segmented'
 import { AssignmentSelect, CourseSelect, trimOrError, validUrl } from './shared'
+import { useT } from '@/i18n'
+import { msg } from '@/i18n/langs'
 
 export function ResourceForm({ formId, initial, preset, onDone }: { formId: string; initial?: Resource; preset?: { courseId?: string | null; moduleId?: string | null; assignmentId?: string | null }; onDone: (r: Resource) => void }) {
+  const tt = useT()
   const add = useStore((s) => s.addResource)
   const update = useStore((s) => s.updateResource)
   const modules = useStore((s) => s.modules)
@@ -31,10 +34,10 @@ export function ResourceForm({ formId, initial, preset, onDone }: { formId: stri
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     const errs: Record<string, string> = {}
-    const t = trimOrError(title || file?.name || '', 'Title')
+    const t = trimOrError(title || file?.name || '', msg('Title'))
     if (t) errs.title = t
-    if (kind === 'link' && !validUrl(url.trim())) errs.url = 'Enter a full link starting with https://'
-    if (kind === 'file' && !file && !initial?.file) errs.file = 'Choose a file to attach.'
+    if (kind === 'link' && !validUrl(url.trim())) errs.url = tt('Enter a full link starting with https://')
+    if (kind === 'file' && !file && !initial?.file) errs.file = tt('Choose a file to attach.')
     if (file) {
       const fe = validateFile(file)
       if (fe) errs.file = fe
@@ -51,7 +54,7 @@ export function ResourceForm({ formId, initial, preset, onDone }: { formId: stri
         fileRef = { blobId, name: file.name, size: file.size, mimeType: file.type }
       } catch (err) {
         setSaving(false)
-        setErrors({ file: (err as Error).message || 'The file could not be saved in this browser.' })
+        setErrors({ file: (err as Error).message || tt('The file could not be saved in this browser.') })
         return
       }
       setSaving(false)
@@ -69,11 +72,11 @@ export function ResourceForm({ formId, initial, preset, onDone }: { formId: stri
     }
     if (initial) {
       update(initial.id, fields)
-      toast('Resource updated')
+      toast(tt('Resource updated'))
       onDone({ ...initial, ...fields })
     } else {
       const created = add({ ...fields, favorite: false, createdAt: new Date().toISOString() })
-      toast('Resource saved')
+      toast(tt('Resource saved'))
       onDone(created)
     }
   }
@@ -102,7 +105,7 @@ export function ResourceForm({ formId, initial, preset, onDone }: { formId: stri
                 <span className="inline-flex items-center gap-1.5 text-sm text-fg-2">
                   <Paperclip className="size-3.5" aria-hidden />
                   {file.name}
-                  <button type="button" aria-label="Remove file" onClick={() => setFile(null)} className="rounded p-0.5 text-fg-3 hover:text-fg">
+                  <button type="button" aria-label={tt('Remove file')} onClick={() => setFile(null)} className="rounded p-0.5 text-fg-3 hover:text-fg">
                     <X className="size-3.5" aria-hidden />
                   </button>
                 </span>
@@ -132,7 +135,7 @@ export function ResourceForm({ formId, initial, preset, onDone }: { formId: stri
         <Field label="Module" optional>
           {(p) => (
             <Select {...p} value={moduleId ?? ''} onChange={(e) => setModuleId(e.target.value || null)} disabled={!courseId || courseModules.length === 0}>
-              <option value="">{courseId ? (courseModules.length ? 'No module' : 'Course has no modules') : 'Choose a course first'}</option>
+              <option value="">{courseId ? (courseModules.length ? tt('No module') : tt('Course has no modules')) : tt('Choose a course first')}</option>
               {courseModules.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.title}
@@ -155,16 +158,17 @@ export function ResourceForm({ formId, initial, preset, onDone }: { formId: stri
 }
 
 export function AddResourceDialog({ open, onClose, preset }: { open: boolean; onClose: () => void; preset?: { courseId?: string | null; assignmentId?: string | null } }) {
+  const tt = useT()
   return (
     <Dialog
       open={open}
       onClose={onClose}
-      title="Save a resource"
+      title={tt('Save a resource')}
       footer={
         <>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{tt('Cancel')}</Button>
           <Button variant="primary" type="submit" form="resource-form">
-            Save
+            {tt('Save')}
           </Button>
         </>
       }

@@ -26,6 +26,7 @@ import { mergeCanvasData } from '@/integrations/canvas/merge'
 import type { CanvasMapped } from '@/integrations/canvas/mapping'
 import { deleteStoredFile } from './fileStore'
 import { toast } from './ui'
+import { tr } from '@/i18n/core'
 
 export const DEFAULT_PREFS: Preferences = {
   displayName: 'Alex',
@@ -50,6 +51,7 @@ export const DEFAULT_PREFS: Preferences = {
   skipped: [],
   familySharing: false,
   planDone: [],
+  language: 'en',
 }
 
 function freshDemo(prefs: Preferences) {
@@ -164,7 +166,7 @@ const safeStorage: StateStorage = {
     } catch {
       if (!warnedAboutStorage) {
         warnedAboutStorage = true
-        toast('Changes could not be saved in this browser. Storage may be full or disabled.', 'error')
+        toast(tr('Changes could not be saved in this browser. Storage may be full or disabled.'), 'error')
       }
     }
   },

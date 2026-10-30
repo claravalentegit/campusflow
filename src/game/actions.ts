@@ -4,13 +4,14 @@ import type { Assignment, StudyTask } from '@/domain/types'
 import { useStore } from '@/store/appStore'
 import { toast } from '@/store/ui'
 import { celebrateCompletion, sfx } from './fx'
+import { tr } from '@/i18n/core'
 
 /** Skip an assignment: it leaves CampusFlow (not Canvas), with an Undo. */
 export function skipAssignment(a: Assignment) {
   sfx.swish()
   useStore.getState().skipAssignment(a.id)
-  toast(`Skipped “${a.title}”. It’s still on Canvas.`, 'info', {
-    label: 'Undo',
+  toast(tr('Skipped “{title}”. It’s still on Canvas.', { title: a.title }), 'info', {
+    label: tr('Undo'),
     run: () => {
       useStore.getState().unskipAssignment(a.id)
       sfx.pop()
@@ -24,15 +25,15 @@ export function completeAssignment(a: Assignment, el: Element | null) {
   if (isAssignmentDone(a)) {
     st.setAssignmentStatus(a.id, checklistProgress(st.tasks, a.id).done ? 'in_progress' : 'not_started')
     sfx.undo()
-    toast(`Reopened “${a.title}”`, 'info')
+    toast(tr('Reopened “{title}”', { title: a.title }), 'info')
     return
   }
   const prev = a.status
   const ev = st.setAssignmentStatus(a.id, 'completed')
   if (!ev) return
   celebrateCompletion(el, ev.amount, { boss: ev.boss })
-  toast(ev.boss ? `Boss defeated! +${ev.amount} XP` : `+${ev.amount} XP · ${a.title}`, 'success', {
-    label: 'Undo',
+  toast(ev.boss ? tr('Boss defeated! +{n} XP', { n: ev.amount }) : `+${ev.amount} XP · ${a.title}`, 'success', {
+    label: tr('Undo'),
     run: () => {
       useStore.getState().setAssignmentStatus(a.id, prev)
       sfx.undo()
@@ -50,7 +51,7 @@ export function completeTask(t: StudyTask, el: Element | null) {
   }
   celebrateCompletion(el, ev.amount)
   toast(`+${ev.amount} XP · ${t.title}`, 'success', {
-    label: 'Undo',
+    label: tr('Undo'),
     run: () => {
       useStore.getState().toggleTask(t.id)
       sfx.undo()

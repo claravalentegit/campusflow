@@ -8,10 +8,13 @@ import { COURSE_ICON, courseColor, courseSoft } from '../course'
 import { Field, Input, Select, Textarea } from '../ui/Field'
 import { cn } from '../ui/cn'
 import { trimOrError } from './shared'
+import { useT } from '@/i18n'
+import { msg } from '@/i18n/langs'
 
 export function ColorPicker({ value, onChange }: { value: CourseColor; onChange: (c: CourseColor) => void }) {
+  const tt = useT()
   return (
-    <div role="radiogroup" aria-label="Course color" className="flex flex-wrap gap-2">
+    <div role="radiogroup" aria-label={tt('Course color')} className="flex flex-wrap gap-2">
       {COURSE_COLORS.map((c) => (
         <button
           key={c}
@@ -31,8 +34,9 @@ export function ColorPicker({ value, onChange }: { value: CourseColor; onChange:
 }
 
 export function IconPicker({ value, onChange, color }: { value: CourseIcon; onChange: (c: CourseIcon) => void; color: CourseColor }) {
+  const tt = useT()
   return (
-    <div role="radiogroup" aria-label="Course icon" className="flex flex-wrap gap-1.5">
+    <div role="radiogroup" aria-label={tt('Course icon')} className="flex flex-wrap gap-1.5">
       {COURSE_ICONS.map((i) => {
         const Icon = COURSE_ICON[i]
         const active = value === i
@@ -56,6 +60,7 @@ export function IconPicker({ value, onChange, color }: { value: CourseIcon; onCh
 }
 
 export function CourseForm({ formId, initial, onDone }: { formId: string; initial?: Course; onDone: (c: Course) => void }) {
+  const tt = useT()
   const add = useStore((s) => s.addCourse)
   const update = useStore((s) => s.updateCourse)
   const count = useStore((s) => s.courses.length)
@@ -73,9 +78,9 @@ export function CourseForm({ formId, initial, onDone }: { formId: string; initia
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
     const errs: Record<string, string> = {}
-    const n = trimOrError(name, 'Course name', 120)
+    const n = trimOrError(name, msg('Course name'), 120)
     if (n) errs.name = n
-    const c = trimOrError(code, 'Course code', 30)
+    const c = trimOrError(code, msg('Course code'), 30)
     if (c) errs.code = c
     setErrors(errs)
     if (Object.keys(errs).length) {
@@ -95,7 +100,7 @@ export function CourseForm({ formId, initial, onDone }: { formId: string; initia
     }
     if (initial) {
       update(initial.id, fields)
-      toast('Course updated')
+      toast(tt('Course updated'))
       onDone({ ...initial, ...fields })
     } else {
       const created = add({ ...fields, hidden: false, gradeCategories: [], targetGrade: null, source: 'manual', canvasId: null, createdAt: new Date().toISOString() })
@@ -111,7 +116,7 @@ export function CourseForm({ formId, initial, onDone }: { formId: string; initia
           {(p) => <Input {...p} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Organic Chemistry" data-autofocus />}
         </Field>
         <Field id={`${formId}-code`} label="Code" error={errors.code}>
-          {(p) => <Input {...p} value={code} onChange={(e) => setCode(e.target.value)} placeholder="CHEM 232" />}
+          {(p) => <Input {...p} value={code} onChange={(e) => setCode(e.target.value)} placeholder={tt('CHEM 232')} />}
         </Field>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -119,34 +124,34 @@ export function CourseForm({ formId, initial, onDone }: { formId: string; initia
           {(p) => <Input {...p} value={instructor} onChange={(e) => setInstructor(e.target.value)} />}
         </Field>
         <Field label="Term" optional>
-          {(p) => <Input {...p} value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Fall 2026" />}
+          {(p) => <Input {...p} value={term} onChange={(e) => setTerm(e.target.value)} placeholder={tt('Fall 2026')} />}
         </Field>
       </div>
       <Field label="Meeting times & location" optional>
-        {(p) => <Input {...p} value={meetingInfo} onChange={(e) => setMeetingInfo(e.target.value)} placeholder="Tue/Thu 11:00 · Noyes 100" />}
+        {(p) => <Input {...p} value={meetingInfo} onChange={(e) => setMeetingInfo(e.target.value)} placeholder={tt('Tue/Thu 11:00 · Noyes 100')} />}
       </Field>
       <Field label="Description" optional>
-        {(p) => <Textarea {...p} value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Where things live in this course, policies worth remembering…" />}
+        {(p) => <Textarea {...p} value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder={tt('Where things live in this course, policies worth remembering…')} />}
       </Field>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-fg-2">Color</span>
+          <span className="text-xs font-medium text-fg-2">{tt('Color')}</span>
           <ColorPicker value={color} onChange={setColor} />
         </div>
         {initial && (
           <Field label="Status">
             {(p) => (
               <Select {...p} value={status} onChange={(e) => setStatus(e.target.value as CourseStatus)}>
-                <option value="active">Active</option>
-                <option value="completed">Completed</option>
-                <option value="archived">Archived</option>
+                <option value="active">{tt('Active')}</option>
+                <option value="completed">{tt('Completed')}</option>
+                <option value="archived">{tt('Archived')}</option>
               </Select>
             )}
           </Field>
         )}
       </div>
       <div className="flex flex-col gap-1.5">
-        <span className="text-xs font-medium text-fg-2">Icon</span>
+        <span className="text-xs font-medium text-fg-2">{tt('Icon')}</span>
         <IconPicker value={icon} onChange={setIcon} color={color} />
       </div>
     </form>

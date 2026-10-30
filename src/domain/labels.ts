@@ -1,3 +1,5 @@
+import { tr } from '@/i18n/core'
+import { msg } from '@/i18n/langs'
 import type {
   AssignmentStatus,
   AssignmentType,
@@ -10,77 +12,77 @@ import type {
 } from './types'
 
 export const STATUS_LABEL: Record<AssignmentStatus, string> = {
-  not_started: 'Not started',
-  in_progress: 'In progress',
-  submitted: 'Submitted (self-reported)',
-  completed: 'Completed',
+  not_started: msg('Not started'),
+  in_progress: msg('In progress'),
+  submitted: msg('Submitted (self-reported)'),
+  completed: msg('Completed'),
 }
 
 export const STATUS_SHORT: Record<AssignmentStatus, string> = {
-  not_started: 'Not started',
-  in_progress: 'In progress',
-  submitted: 'Submitted',
-  completed: 'Completed',
+  not_started: msg('Not started'),
+  in_progress: msg('In progress'),
+  submitted: msg('Submitted'),
+  completed: msg('Completed'),
 }
 
-export const PRIORITY_LABEL: Record<Priority, string> = { high: 'High', medium: 'Medium', low: 'Low' }
+export const PRIORITY_LABEL: Record<Priority, string> = { high: msg('High'), medium: msg('Medium'), low: msg('Low') }
 
 export const TYPE_LABEL: Record<AssignmentType, string> = {
-  essay: 'Essay / paper',
-  problem_set: 'Problem set',
-  project: 'Project',
-  quiz: 'Quiz',
-  exam: 'Exam',
-  reading: 'Reading',
-  discussion: 'Discussion',
-  lab: 'Lab',
-  presentation: 'Presentation',
-  other: 'Other',
+  essay: msg('Essay / paper'),
+  problem_set: msg('Problem set'),
+  project: msg('Project'),
+  quiz: msg('Quiz'),
+  exam: msg('Exam'),
+  reading: msg('Reading'),
+  discussion: msg('Discussion'),
+  lab: msg('Lab'),
+  presentation: msg('Presentation'),
+  other: msg('Other'),
 }
 
 export const MODULE_ITEM_LABEL: Record<ModuleItemType, string> = {
-  reading: 'Reading',
-  lecture: 'Lecture',
-  quiz: 'Quiz',
-  assignment: 'Assignment',
-  page: 'Page',
-  file: 'File',
-  discussion: 'Discussion',
-  link: 'Link',
+  reading: msg('Reading'),
+  lecture: msg('Lecture'),
+  quiz: msg('Quiz'),
+  assignment: msg('Assignment'),
+  page: msg('Page'),
+  file: msg('File'),
+  discussion: msg('Discussion'),
+  link: msg('Link'),
 }
 
 export const EVENT_KIND_LABEL: Record<CalendarEventKind, string> = {
-  exam: 'Exam',
-  class: 'Class',
-  event: 'Event',
-  deadline: 'Deadline',
+  exam: msg('Exam'),
+  class: msg('Class'),
+  event: msg('Event'),
+  deadline: msg('Deadline'),
 }
 
 export const SOURCE_LABEL: Record<RecordSource, string> = {
-  canvas: 'From Canvas',
-  demo: 'Demo data',
-  manual: 'Added by you',
+  canvas: msg('From Canvas'),
+  demo: msg('Demo data'),
+  manual: msg('Added by you'),
 }
 
 export const GRADE_SOURCE_LABEL: Record<GradeSource, string> = {
-  canvas: 'Canvas',
-  manual: 'Entered by you',
-  demo: 'Demo',
+  canvas: msg('Canvas'),
+  manual: msg('Entered by you'),
+  demo: msg('Demo'),
 }
 
 export function canvasSubmissionLabel(s: CanvasSubmission | null): string {
-  if (!s) return 'Unknown — not synced with Canvas'
-  const prefix = s.source === 'demo' ? 'Demo: ' : ''
+  if (!s) return tr('Unknown — not synced with Canvas')
+  const prefix = s.source === 'demo' ? `${tr('Demo')}: ` : ''
   switch (s.state) {
     case 'submitted':
-      return `${prefix}Submitted on Canvas`
+      return `${prefix}${tr('Submitted on Canvas')}`
     case 'graded':
-      return `${prefix}Graded on Canvas`
+      return `${prefix}${tr('Graded on Canvas')}`
     case 'pending_review':
-      return `${prefix}Pending review on Canvas`
+      return `${prefix}${tr('Pending review on Canvas')}`
     case 'missing':
-      return `${prefix}Marked missing on Canvas`
+      return `${prefix}${tr('Marked missing on Canvas')}`
     default:
-      return `${prefix}Not submitted on Canvas`
+      return `${prefix}${tr('Not submitted on Canvas')}`
   }
 }

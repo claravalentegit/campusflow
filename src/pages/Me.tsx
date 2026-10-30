@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
-import { format } from 'date-fns'
 import { Flame, Repeat, Star, Trophy } from 'lucide-react'
 import { BADGES } from '@/domain/game'
 import { petMood, petStage } from '@/domain/pet'
@@ -16,9 +15,11 @@ import { Page, usePageTitle } from '@/components/Page'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Field'
 import { cn } from '@/components/ui/cn'
+import { fmtDate, useT } from '@/i18n'
 
 export function Me() {
-  usePageTitle('Me')
+  const t = useT()
+  usePageTitle(t('Me'))
   const now = useNow()
   const name = useStore((s) => s.prefs.displayName)
   const pet = useStore((s) => s.prefs.pet)
@@ -45,26 +46,26 @@ export function Me() {
         <div className="relative flex flex-col items-center gap-4 sm:flex-row sm:items-center">
           {pet ? (
             <div className="flex flex-col items-center">
-              <Pet species={pet.species} mood={petMood(assignments, events, now).mood} stage={stage.stage} size={140} label={`${pet.name}, your pet. Tap to say hi.`} />
+              <Pet species={pet.species} mood={petMood(assignments, events, now).mood} stage={stage.stage} size={140} label={t('{name}, your pet. Tap to say hi.', { name: pet.name })} />
               <p className="text-base font-black">{pet.name}</p>
-              <p className="text-xs font-bold text-fg-3">{stage.label}{stage.next ? ` · ${stage.next.label} at Level ${stage.next.at}` : ''}</p>
+              <p className="text-xs font-bold text-fg-3">{t(stage.label)}{stage.next ? ` · ${t('{stage} at Level {n}', { stage: t(stage.next.label), n: stage.next.at })}` : ''}</p>
             </div>
           ) : null}
           <div className="w-full min-w-0 flex-1">
             <label htmlFor="display-name" className="text-xs font-black tracking-[0.12em] text-fg-3 uppercase">
-              Your name
+              {t('Your name')}
             </label>
-            <Input id="display-name" value={name} maxLength={40} onChange={(e) => update({ displayName: e.target.value })} className="mt-1 h-12 text-lg font-black" placeholder="What should we call you?" />
+            <Input id="display-name" value={name} maxLength={40} onChange={(e) => update({ displayName: e.target.value })} className="mt-1 h-12 text-lg font-black" placeholder={t('What should we call you?')} />
             <p className="mt-3 text-sm font-extrabold text-accent-text">
-              Level {level} · {title}
+              {t('Level {n}', { n: level })} · {t(title)}
             </p>
-            <ProgressBar value={progress} height="h-3.5" className="mt-1.5" label="Progress to next level" />
+            <ProgressBar value={progress} height="h-3.5" className="mt-1.5" label={t('Progress to next level')} />
             <p className="tabular mt-1 text-xs font-bold text-fg-3">
-              {into} / {needed} XP to level {level + 1}
+              {t('{into} / {needed} XP to level {n}', { into, needed, n: level + 1 })}
             </p>
             {pet && (
               <Button size="sm" variant="ghost" icon={Repeat} className="mt-2 -ml-2" aria-expanded={changing} data-sfx={changing ? 'close' : 'open'} onClick={() => setChanging((c) => !c)}>
-                {changing ? 'Keep my pet' : 'Change or rename pet'}
+                {changing ? t('Keep my pet') : t('Change or rename pet')}
               </Button>
             )}
           </div>
@@ -81,20 +82,20 @@ export function Me() {
       </section>
 
       <div className="mt-4 grid grid-cols-3 gap-3">
-        <Stat icon={<Star className="size-5 fill-gold text-gold" aria-hidden />} label="Total XP" delay={0}>
+        <Stat icon={<Star className="size-5 fill-gold text-gold" aria-hidden />} label={t('Total XP')} delay={0}>
           <AnimatedNumber value={total} />
         </Stat>
-        <Stat icon={<Flame className="flicker size-5 fill-fire text-fire" aria-hidden />} label="Day streak" delay={0.05}>
+        <Stat icon={<Flame className="flicker size-5 fill-fire text-fire" aria-hidden />} label={t('Day streak')} delay={0.05}>
           <AnimatedNumber value={days} />
         </Stat>
-        <Stat icon={<Trophy className="size-5 text-success" aria-hidden />} label="Finished" delay={0.1}>
+        <Stat icon={<Trophy className="size-5 text-success" aria-hidden />} label={t('Finished')} delay={0.1}>
           <AnimatedNumber value={completed} />
         </Stat>
       </div>
 
       <section className="mt-6" aria-labelledby="badges-title">
         <h2 id="badges-title" className="mb-3 text-xs font-black tracking-[0.12em] text-fg-3 uppercase">
-          Badges · {earned.length} of {BADGES.length}
+          {t('Badges · {n} of {total}', { n: earned.length, total: BADGES.length })}
         </h2>
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
           {BADGES.map((b, i) => {
@@ -109,8 +110,8 @@ export function Me() {
                 className={cn('card-3d flex flex-col items-center gap-2 px-3 py-4 text-center', !at && 'opacity-70')}
               >
                 <BadgeIcon id={b.id} earned={!!at} />
-                <span className="text-sm leading-tight font-black">{b.name}</span>
-                <span className="text-xs leading-tight font-bold text-fg-3">{at ? `Earned ${format(new Date(at), 'MMM d')}` : b.description}</span>
+                <span className="text-sm leading-tight font-black">{t(b.name)}</span>
+                <span className="text-xs leading-tight font-bold text-fg-3">{at ? t('Earned {date}', { date: fmtDate(new Date(at), 'MMM d') }) : t(b.description)}</span>
               </motion.li>
             )
           })}

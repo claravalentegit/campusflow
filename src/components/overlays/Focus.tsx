@@ -10,6 +10,7 @@ import { Button } from '../ui/Button'
 import { Dialog } from '../ui/Dialog'
 import { Field, Input, Select } from '../ui/Field'
 import { cn } from '../ui/cn'
+import { tr, useT } from '@/i18n'
 
 function useRemaining(): number | null {
   const focus = useStore((s) => s.focus)
@@ -42,7 +43,7 @@ export function FocusWatcher() {
     if (focus && remaining === 0) {
       finish(true)
       sfx.focusDone()
-      toast(`Focus session complete: ${focus.title}`, 'success')
+      toast(tr('Focus session complete: {title}', { title: focus.title }), 'success')
     }
   }, [remaining, focus, finish])
   return null
@@ -54,7 +55,7 @@ export function FocusPill() {
   const open = useUi((s) => s.setFocusDialogOpen)
   if (!focus || remaining == null) return null
   return (
-    <button type="button" onClick={() => open(true)} className="tabular inline-flex h-8 items-center gap-1.5 rounded-full bg-accent-soft px-3 text-xs font-semibold text-accent-text transition-colors hover:bg-accent-soft/70" aria-label={`Focus session running, ${fmt(remaining)} left. Open timer`}>
+    <button type="button" onClick={() => open(true)} className="tabular inline-flex h-8 items-center gap-1.5 rounded-full bg-accent-soft px-3 text-xs font-semibold text-accent-text transition-colors hover:bg-accent-soft/70" aria-label={tr('Focus session running, {time} left. Open timer', { time: fmt(remaining) })}>
       <span className="relative flex size-2">
         <span className="absolute inline-flex size-full animate-ping rounded-full bg-accent opacity-50" />
         <span className="relative inline-flex size-2 rounded-full bg-accent" />
@@ -81,6 +82,7 @@ export function FocusDialog() {
   const [custom, setCustom] = useState('')
   const [minutes, setMinutes] = useState(prefs.focusMinutes)
   const [error, setError] = useState<string | null>(null)
+  const t = useT()
 
   useEffect(() => {
     if (open) {
@@ -93,7 +95,7 @@ export function FocusDialog() {
 
   const start = () => {
     if (choice === 'custom') {
-      if (!custom.trim()) return setError('Name what you will focus on.')
+      if (!custom.trim()) return setError(t('Name what you will focus on.'))
       startFocus({ title: custom.trim(), courseId: null, assignmentId: null, taskId: null, durationMinutes: minutes })
     } else {
       const s = suggestions.find((x) => `${x.kind}:${x.id}` === choice)
@@ -110,7 +112,7 @@ export function FocusDialog() {
     <Dialog
       open={open}
       onClose={() => setOpen(false)}
-      title={focus ? 'Focus session' : 'Start a focus session'}
+      title={focus ? t('Focus session') : t('Start a focus session')}
       size="sm"
       footer={
         focus ? (
@@ -120,29 +122,29 @@ export function FocusDialog() {
               className="mr-auto"
               onClick={() => {
                 finish(false)
-                toast('Focus session discarded', 'info')
+                toast(t('Focus session discarded'), 'info')
               }}
             >
-              Discard
+              {t('Discard')}
             </Button>
-            <Button onClick={() => setOpen(false)}>Hide</Button>
+            <Button onClick={() => setOpen(false)}>{t('Hide')}</Button>
             <Button
               variant="primary"
               icon={Pause}
               onClick={() => {
                 finish(true)
                 setOpen(false)
-                toast('Focus session saved')
+                toast(t('Focus session saved'))
               }}
             >
-              End &amp; log
+              {t('End & log')}
             </Button>
           </>
         ) : (
           <>
-            <Button onClick={() => setOpen(false)}>Cancel</Button>
+            <Button onClick={() => setOpen(false)}>{t('Cancel')}</Button>
             <Button variant="primary" icon={Timer} onClick={start}>
-              Start {minutes} min
+              {t('Start {n} min', { n: minutes })}
             </Button>
           </>
         )
@@ -163,12 +165,12 @@ export function FocusDialog() {
             <p className="font-medium">{focus.title}</p>
             {course && <CourseTag course={course} className="mt-1 justify-center" />}
           </div>
-          <p className="text-xs text-fg-3">Every focused minute earns 1 XP.</p>
+          <p className="text-xs text-fg-3">{t('Every focused minute earns 1 XP.')}</p>
         </div>
       ) : (
         <div className="flex flex-col gap-4">
           <fieldset className="flex flex-col gap-1.5">
-            <legend className="mb-1.5 text-xs font-medium text-fg-2">Focus on</legend>
+            <legend className="mb-1.5 text-xs font-medium text-fg-2">{t('Focus on')}</legend>
             {suggestions.map((s) => (
               <label key={s.id} className={cn('flex cursor-pointer items-center gap-2.5 rounded-md border px-3 py-2 text-sm transition-colors', choice === `${s.kind}:${s.id}` ? 'border-accent bg-accent-soft/50' : 'border-line hover:bg-surface-2')}>
                 <input type="radio" name="focus-choice" className="accent-[var(--accent)]" checked={choice === `${s.kind}:${s.id}`} onChange={() => setChoice(`${s.kind}:${s.id}`)} />
@@ -178,9 +180,9 @@ export function FocusDialog() {
             ))}
             <label className={cn('flex cursor-pointer items-center gap-2.5 rounded-md border px-3 py-2 text-sm', choice === 'custom' ? 'border-accent bg-accent-soft/50' : 'border-line hover:bg-surface-2')}>
               <input type="radio" name="focus-choice" className="accent-[var(--accent)]" checked={choice === 'custom'} onChange={() => setChoice('custom')} />
-              Something else
+              {t('Something else')}
             </label>
-            {choice === 'custom' && <Input aria-label="What will you focus on?" value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="What will you focus on?" autoFocus />}
+            {choice === 'custom' && <Input aria-label={t('What will you focus on?')} value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="What will you focus on?" autoFocus />}
             {error && <p className="text-xs text-danger" role="alert">{error}</p>}
           </fieldset>
           <Field label="Length">
@@ -188,7 +190,7 @@ export function FocusDialog() {
               <Select {...p} value={minutes} onChange={(e) => setMinutes(Number(e.target.value))}>
                 {[15, 25, 45, 50, 60, 90].map((m) => (
                   <option key={m} value={m}>
-                    {m} minutes
+                    {t('{n} minutes', { n: m })}
                   </option>
                 ))}
               </Select>

@@ -155,6 +155,13 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL) {
     rateLimit(`parent-view:${clientIp(req)}`, 120, 60_000)
     return json(res, 200, await fam.parentView(parseCookies(req)[PARENT_COOKIE], view[1]))
   }
+  const guide = /^\/api\/parent\/students\/([A-Za-z0-9]{24})\/guide-done$/.exec(path)
+  if (guide && method === 'POST') {
+    assertCsrfSafe(req)
+    rateLimit(`parent-guide:${clientIp(req)}`, 20, 60_000)
+    await fam.guideDone(parseCookies(req)[PARENT_COOKIE], guide[1])
+    return json(res, 200, { ok: true })
+  }
   if (path === '/api/parent/unlink' && method === 'POST') {
     assertCsrfSafe(req)
     await fam.parentUnlink(parseCookies(req)[PARENT_COOKIE])

@@ -537,8 +537,40 @@ await test('Family: a parent links with a code, sees everything in plain words, 
   await view.getByText('Homework 5: Determinants').waitFor()
   await view.getByText('18 / 20', { exact: false }).waitFor()
   await view.getByText('Midterm review session Thursday').waitFor()
-  await parent.getByRole('button', { name: 'Cambiar a español' }).click()
-  await parent.getByRole('tab', { name: 'Esta semana' }).waitFor()
+
+  // The weekly guide: one card at a time, until done. The student is told.
+  await view.getByRole('tab', { name: 'Guide' }).click()
+  const guide = parent.getByTestId('parent-guide')
+  await guide.getByTestId('parent-guide-card').first().getByText('Start with the good').waitFor()
+  await parent.screenshot({ path: join(shots, 'family-guide-good.png'), fullPage: true })
+  let sawFocus = false
+  for (let i = 0; i < 15 && !(await guide.getByTestId('parent-guide-done').count()); i++) {
+    const card = guide.getByTestId('parent-guide-card')
+    await card.waitFor()
+    if (!sawFocus && (await card.getByTestId('try-saying').count())) {
+      sawFocus = true
+      const before = await card.getByTestId('try-saying').innerText()
+      await card.getByRole('button', { name: 'Different words' }).click()
+      await parent.waitForTimeout(400)
+      assert((await card.getByTestId('try-saying').innerText()) !== before, 'Different words did not change the line')
+      await parent.screenshot({ path: join(shots, 'family-guide-talk.png'), fullPage: true })
+    }
+    await card.getByRole('button', { name: 'Got it, next' }).click()
+    // Wait for the old card to fly away before reading the next one.
+    await parent.waitForFunction(() => document.querySelectorAll('[data-testid=parent-guide-card]').length <= 1)
+    await parent.waitForTimeout(300)
+  }
+  assert(sawFocus, 'no “what matters” card with words to say')
+  await guide.getByText('You’re done for this week 💚').waitFor()
+  await page.reload()
+  await page.getByRole('region', { name: 'Shared with' }).getByTestId('guide-done-note').waitFor()
+
+  // Settings: the parent picks Portuguese.
+  await parent.getByRole('button', { name: 'Settings' }).click()
+  await dialog(parent).getByRole('radio', { name: 'Português' }).click()
+  await dialog(parent).getByRole('button', { name: 'Pronto' }).click()
+  await parent.getByRole('tab', { name: 'Aulas' }).waitFor()
+  await parent.getByRole('tab', { name: 'Guia' }).waitFor()
   assert((await parent.evaluate(() => document.documentElement.scrollWidth)) <= 390, 'parent view overflows on a phone')
   await parent.screenshot({ path: join(shots, 'family-parent.png'), fullPage: true })
 
@@ -546,7 +578,7 @@ await test('Family: a parent links with a code, sees everything in plain words, 
   await page.getByRole('region', { name: 'Shared with' }).getByRole('button', { name: 'Remove' }).click()
   await dialog(page).getByRole('button', { name: 'Stop sharing' }).click()
   await parent.reload()
-  await parent.getByText('Jordan dejó de compartir.').waitFor()
+  await parent.getByText('Jordan parou de compartilhar.').waitFor()
   await parentCtx.close()
 }, undefined, { fresh: true })
 
@@ -556,7 +588,7 @@ await test('Canvas: without the server, the page says so instead of pretending',
   await page.getByText('Preview: practice run, can’t connect').waitFor()
   await connectThroughCards(page, 'canvas.example.edu', MOCK_TOKEN)
   await page.getByTestId('connect-preview').getByText('You did everything right!').waitFor()
-  await page.getByRole('button', { name: 'Try the demo instead for now' }).click()
+  await page.getByRole('button', { name: 'Try the demo instead' }).click()
   await page.getByTestId('day-summary').waitFor()
 }, undefined, { allowNetworkErrors: true, fresh: true })
 
@@ -583,6 +615,28 @@ await test('15. Single-key shortcuts do not fire while typing', async (page) => 
   await page.locator('h1').click()
   await page.keyboard.press('c')
   await dialog(page).getByRole('heading', { name: 'Add' }).waitFor()
+})
+
+await test('Language: Español and Português everywhere, remembered after reload', async (page) => {
+  await page.goto(`${BASE}/me#language`)
+  await page.getByRole('radio', { name: 'Español' }).click()
+  await page.getByRole('navigation', { name: 'Principal' }).getByRole('link', { name: 'Hoy' }).waitFor()
+  await page.getByRole('heading', { name: 'Ajustes' }).waitFor()
+  await page.reload()
+  await page.getByRole('navigation', { name: 'Principal' }).getByRole('link', { name: 'Hoy' }).click()
+  await page.getByRole('region', { name: 'Guía de notas' }).waitFor()
+  assert((await page.evaluate(() => document.documentElement.lang)) === 'es', 'html lang not set')
+  await page.screenshot({ path: join(shots, 'lang-es-today.png') })
+  await page.getByRole('link', { name: 'Plan' }).first().click()
+  await page.getByRole('heading', { name: 'Tu plan' }).waitFor()
+  await page.goto(`${BASE}/me#language`)
+  await page.getByRole('radio', { name: 'Português' }).click()
+  await page.getByRole('navigation', { name: 'Principal' }).getByRole('link', { name: 'Hoje' }).click()
+  await page.getByText(/Bom dia|Boa tarde|Boa noite|Trabalhando até tarde/).first().waitFor()
+  await page.screenshot({ path: join(shots, 'lang-pt-today.png') })
+  await page.goto(`${BASE}/me#language`)
+  await page.getByRole('radio', { name: 'English' }).click()
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Today' }).waitFor()
 })
 
 await test('Dark theme renders without errors', async (page) => {

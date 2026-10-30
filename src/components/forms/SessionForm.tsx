@@ -6,8 +6,11 @@ import { useStore } from '@/store/appStore'
 import { toast } from '@/store/ui'
 import { Field, Input } from '../ui/Field'
 import { AssignmentSelect, CourseSelect, trimOrError } from './shared'
+import { useT } from '@/i18n'
+import { msg } from '@/i18n/langs'
 
 export function SessionForm({ formId, initial, preset, onDone }: { formId: string; initial?: StudySession; preset?: { courseId?: string | null; assignmentId?: string | null; day?: string; time?: string }; onDone: (s: StudySession) => void }) {
+  const tt = useT()
   const add = useStore((s) => s.addSession)
   const update = useStore((s) => s.updateSession)
   const sessions = useStore((s) => s.sessions)
@@ -41,13 +44,13 @@ export function SessionForm({ formId, initial, preset, onDone }: { formId: strin
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
     const errs: Record<string, string> = {}
-    const t = trimOrError(title, 'Title')
+    const t = trimOrError(title, msg('Title'))
     if (t) errs.title = t
-    if (!day || !startAt) errs.day = 'Choose a date.'
+    if (!day || !startAt) errs.day = tt('Choose a date.')
     else {
       const end = parseInstant(endAt)
       const start = parseInstant(startAt)
-      if (!end || !start || end.getTime() <= start.getTime()) errs.end = 'End time must be after the start time.'
+      if (!end || !start || end.getTime() <= start.getTime()) errs.end = tt('End time must be after the start time.')
     }
     setErrors(errs)
     if (Object.keys(errs).length) return document.getElementById(`${formId}-${Object.keys(errs)[0]}`)?.focus()
@@ -55,11 +58,11 @@ export function SessionForm({ formId, initial, preset, onDone }: { formId: strin
     const fields = { title: title.trim(), courseId: linked?.courseId ?? courseId, assignmentId, start: startAt as string, end: endAt as string }
     if (initial) {
       update(initial.id, fields)
-      toast('Study session updated')
+      toast(tt('Study session updated'))
       onDone({ ...initial, ...fields })
     } else {
       const created = add({ ...fields, taskId: null, completed: false, logged: false })
-      toast('Study session added to your calendar')
+      toast(tt('Study session added to your calendar'))
       onDone(created)
     }
   }

@@ -2,6 +2,7 @@ import { differenceInCalendarDays, startOfDay, subDays } from 'date-fns'
 import { isAssignmentDone, tasksForAssignment } from './assignments'
 import { parseInstant, toLocalDay } from './dates'
 import type { Assignment, ISODateTime, StudyTask } from './types'
+import { msg } from '@/i18n/langs'
 
 /**
  * CampusFlow's game layer. Pure functions only.
@@ -86,16 +87,16 @@ export function levelFor(totalXp: number): { level: number; into: number; needed
 }
 
 const TITLES = [
-  'Fresh Start',
-  'Note Taker',
-  'Planner',
-  'Study Strategist',
-  'Focus Knight',
-  'Deadline Slayer',
-  'Syllabus Sage',
-  'Dean’s List',
-  'Scholar',
-  'Campus Legend',
+  msg('Fresh Start'),
+  msg('Note Taker'),
+  msg('Planner'),
+  msg('Study Strategist'),
+  msg('Focus Knight'),
+  msg('Deadline Slayer'),
+  msg('Syllabus Sage'),
+  msg('Dean’s List'),
+  msg('Scholar'),
+  msg('Campus Legend'),
 ]
 export function levelTitle(level: number): string {
   return TITLES[Math.min(level, TITLES.length) - 1]
@@ -148,16 +149,16 @@ export interface BadgeDef {
 }
 
 export const BADGES: BadgeDef[] = [
-  { id: 'first-step', name: 'First Step', description: 'Complete anything', icon: 'footprints', color: 'green' },
-  { id: 'early-bird', name: 'Early Bird', description: 'Finish something before 9 AM', icon: 'sunrise', color: 'gold' },
-  { id: 'night-owl', name: 'Night Owl', description: 'Finish something after 11 PM', icon: 'moon', color: 'blue' },
-  { id: 'ahead', name: 'Ahead of the Game', description: 'Complete an assignment 2+ days early', icon: 'rocket', color: 'purple' },
-  { id: 'boss-slayer', name: 'Boss Slayer', description: 'Defeat a boss level', icon: 'crown', color: 'purple' },
-  { id: 'comeback', name: 'Comeback Kid', description: 'Catch up on late work', icon: 'heart', color: 'pink' },
-  { id: 'on-fire', name: 'On Fire', description: 'Reach a 3-day streak', icon: 'flame', color: 'fire' },
-  { id: 'unstoppable', name: 'Unstoppable', description: 'Reach a 7-day streak', icon: 'zap', color: 'fire' },
-  { id: 'deep-focus', name: 'Deep Focus', description: 'Finish 5 focus sessions', icon: 'brain', color: 'blue' },
-  { id: 'thousand', name: 'Thousand Club', description: 'Earn 1,000 XP', icon: 'gem', color: 'gold' },
+  { id: 'first-step', name: msg('First Step'), description: msg('Complete anything'), icon: 'footprints', color: 'green' },
+  { id: 'early-bird', name: msg('Early Bird'), description: msg('Finish something before 9 AM'), icon: 'sunrise', color: 'gold' },
+  { id: 'night-owl', name: msg('Night Owl'), description: msg('Finish something after 11 PM'), icon: 'moon', color: 'blue' },
+  { id: 'ahead', name: msg('Ahead of the Game'), description: msg('Complete an assignment 2+ days early'), icon: 'rocket', color: 'purple' },
+  { id: 'boss-slayer', name: msg('Boss Slayer'), description: msg('Defeat a boss level'), icon: 'crown', color: 'purple' },
+  { id: 'comeback', name: msg('Comeback Kid'), description: msg('Catch up on late work'), icon: 'heart', color: 'pink' },
+  { id: 'on-fire', name: msg('On Fire'), description: msg('Reach a 3-day streak'), icon: 'flame', color: 'fire' },
+  { id: 'unstoppable', name: msg('Unstoppable'), description: msg('Reach a 7-day streak'), icon: 'zap', color: 'fire' },
+  { id: 'deep-focus', name: msg('Deep Focus'), description: msg('Finish 5 focus sessions'), icon: 'brain', color: 'blue' },
+  { id: 'thousand', name: msg('Thousand Club'), description: msg('Earn 1,000 XP'), icon: 'gem', color: 'gold' },
 ]
 
 export function badgeDef(id: BadgeId): BadgeDef {

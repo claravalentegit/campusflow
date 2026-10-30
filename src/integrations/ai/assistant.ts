@@ -1,5 +1,6 @@
 import { suggestBreakdown, type SuggestedStep } from '@/domain/breakdown'
 import type { Assignment } from '@/domain/types'
+import { tr } from '@/i18n/core'
 
 /**
  * Extension point for an optional planning assistant.
@@ -19,11 +20,11 @@ export interface PlanningAssistant {
 
 export function missingInfoFor(a: Assignment): string[] {
   const missing: string[] = []
-  if (!a.dueAt) missing.push('No due date — the steps cannot be scheduled.')
-  if (!a.estimatedMinutes) missing.push('No time estimate — add one to size each step.')
-  if (!a.description.trim()) missing.push('No description — check Canvas Pages, Files, and the syllabus for the instructions.')
-  if (!a.submissionInstructions.trim()) missing.push('No submission instructions recorded.')
-  if (!a.rubricNotes.trim() && a.type !== 'reading') missing.push('No rubric or grading notes recorded.')
+  if (!a.dueAt) missing.push(tr('No due date — the steps cannot be scheduled.'))
+  if (!a.estimatedMinutes) missing.push(tr('No time estimate — add one to size each step.'))
+  if (!a.description.trim()) missing.push(tr('No description — check Canvas Pages, Files, and the syllabus for the instructions.'))
+  if (!a.submissionInstructions.trim()) missing.push(tr('No submission instructions recorded.'))
+  if (!a.rubricNotes.trim() && a.type !== 'reading') missing.push(tr('No rubric or grading notes recorded.'))
   return missing
 }
 

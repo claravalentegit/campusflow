@@ -9,6 +9,7 @@ import { AnimatedNumber, BadgeIcon, LevelBadge } from '@/components/game/GameUI'
 import { Button } from '@/components/ui/Button'
 import { cannons, haptic, sfx, starShower, burst } from './fx'
 import { useCelebrations, type Celebration } from './celebrations'
+import { useT } from '@/i18n'
 
 /** Full-screen reward moments, shown one at a time from the queue. */
 export function Celebrations() {
@@ -16,6 +17,7 @@ export function Celebrations() {
   const next = useCelebrations((s) => s.next)
   const button = useRef<HTMLButtonElement>(null)
   const reduce = useReducedMotion()
+  const t = useT()
 
   useEffect(() => {
     if (!current) return
@@ -66,7 +68,7 @@ export function Celebrations() {
             <Hero c={current} />
             <Body c={current} />
             <Button ref={button} variant="primary" size="lg" className="mt-6 w-full" onClick={next}>
-              {current.kind === 'badge' ? 'Nice!' : 'Keep going'}
+              {current.kind === 'badge' ? t('Nice!') : t('Keep going')}
             </Button>
           </motion.div>
         </motion.div>
@@ -116,20 +118,21 @@ function Body({ c }: { c: Celebration }) {
   const pet = useStore((s) => s.prefs.pet)
   const grew = c.kind === 'level' && petStage(c.level).stage !== petStage(c.level - 1).stage ? petStage(c.level).stage : null
   const pop = { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 } }
+  const t = useT()
   if (c.kind === 'quest')
     return (
       <>
         <motion.h2 id="celebration-title" {...pop} transition={{ delay: 0.25 }} className="mt-14 text-3xl font-black text-fire">
-          Quest complete!
+          {t('Quest complete!')}
         </motion.h2>
         <motion.p {...pop} transition={{ delay: 0.35 }} className="mt-1 text-base font-bold text-fg-2">
-          Today is a gold day. Your streak is safe.
+          {t('Today is a gold day. Your streak is safe.')}
         </motion.p>
         <div className="mt-5 grid grid-cols-2 gap-3">
-          <Stat delay={0.45} label="streak" tone="text-fire">
-            <AnimatedNumber value={c.streak} /> {c.streak === 1 ? 'day' : 'days'}
+          <Stat delay={0.45} label={t('streak')} tone="text-fire">
+            <AnimatedNumber value={c.streak} /> {c.streak === 1 ? t('day') : t('days')}
           </Stat>
-          <Stat delay={0.55} label="bonus XP" tone="text-gold-text">
+          <Stat delay={0.55} label={t('bonus XP')} tone="text-gold-text">
             +<AnimatedNumber value={c.bonus} />
           </Stat>
         </div>
@@ -139,21 +142,21 @@ function Body({ c }: { c: Celebration }) {
     return (
       <>
         <motion.h2 id="celebration-title" initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 10, delay: 0.3 }} className="mt-20 text-4xl font-black text-accent-text">
-          Level up!
+          {t('Level up!')}
         </motion.h2>
         <motion.p {...pop} transition={{ delay: 0.45 }} className="mt-1 text-base font-bold text-fg-2">
-          You’re now level {c.level}: <span className="font-black text-fg">{levelTitle(c.level)}</span>
+          {t('You’re now level {n}:', { n: c.level })} <span className="font-black text-fg">{t(levelTitle(c.level))}</span>
         </motion.p>
         {pet && grew ? (
           <motion.div {...pop} transition={{ delay: 0.6 }} className="mt-4 flex items-center justify-center gap-3 rounded-2xl bg-success-soft px-3 py-2">
             <PetArt species={pet.species} stage={grew} size={56} />
             <span className="text-sm font-black text-success">
-              {pet.name} grew into a {petStage(c.level).label}!
+              {t('{name} grew up: {stage}!', { name: pet.name, stage: t(petStage(c.level).label) })}
             </span>
           </motion.div>
         ) : (
           <motion.p {...pop} transition={{ delay: 0.6 }} className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-gold-soft px-3 py-1 text-sm font-black text-gold-text">
-            <Sparkles className="size-4" aria-hidden /> New title unlocked
+            <Sparkles className="size-4" aria-hidden /> {t('New title unlocked')}
           </motion.p>
         )}
       </>
@@ -162,13 +165,13 @@ function Body({ c }: { c: Celebration }) {
   return (
     <>
       <motion.p {...pop} transition={{ delay: 0.2 }} className="mt-10 text-xs font-black tracking-[0.14em] text-fg-3 uppercase">
-        Badge unlocked
+        {t('Badge unlocked')}
       </motion.p>
       <motion.h2 id="celebration-title" {...pop} transition={{ delay: 0.3 }} className="text-3xl font-black">
-        {def.name}
+        {t(def.name)}
       </motion.h2>
       <motion.p {...pop} transition={{ delay: 0.4 }} className="mt-1 font-bold text-fg-2">
-        {def.description}
+        {t(def.description)}
       </motion.p>
     </>
   )

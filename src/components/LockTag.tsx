@@ -1,4 +1,5 @@
-import { format, isSameDay } from 'date-fns'
+import { isSameDay } from 'date-fns'
+import { fmtDate, tr } from '@/i18n/core'
 import { Lock } from 'lucide-react'
 import { isAssignmentDone, lockState } from '@/domain/assignments'
 import type { Assignment } from '@/domain/types'
@@ -9,12 +10,12 @@ export function lockText(a: Assignment, now: Date): { text: string; detail: stri
   const l = lockState(a, now)
   if (!l || isAssignmentDone(a)) return null
   if (l.kind === 'opens') {
-    const when = isSameDay(l.at, now) ? format(l.at, 'h:mm a') : format(l.at, 'EEE MMM d')
-    return { text: `Opens ${when}`, detail: `Locked on Canvas until ${format(l.at, 'EEE MMM d, h:mm a')}. You can look at it, but you can’t turn it in yet.`, closed: false }
+    const when = isSameDay(l.at, now) ? fmtDate(l.at, 'h:mm a') : fmtDate(l.at, 'EEE MMM d')
+    return { text: tr('Opens {when}', { when }), detail: tr('Locked on Canvas until {when}. You can look at it, but you can’t turn it in yet.', { when: fmtDate(l.at, 'EEE MMM d, h:mm a') }), closed: false }
   }
   return {
-    text: 'Closed',
-    detail: `Locked on Canvas${l.at ? ` since ${format(l.at, 'EEE MMM d, h:mm a')}` : ''}: it can’t be turned in anymore.${l.why ? ` ${l.why}` : ''} Ask your teacher if you still need to.`,
+    text: tr('Closed'),
+    detail: `${l.at ? tr('Locked on Canvas since {when}: it can’t be turned in anymore.', { when: fmtDate(l.at, 'EEE MMM d, h:mm a') }) : tr('Locked on Canvas: it can’t be turned in anymore.')}${l.why ? ` ${l.why}` : ''} ${tr('Ask your teacher if you still need to.')}`,
     closed: true,
   }
 }

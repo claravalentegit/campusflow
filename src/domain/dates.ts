@@ -9,6 +9,8 @@ import {
   startOfDay,
   startOfWeek,
 } from 'date-fns'
+import { fmtDate, tr } from '@/i18n/core'
+import { msg } from '@/i18n/langs'
 import type { ISODateTime, LocalDay } from './types'
 
 /** Parse a stored ISO instant. Returns null for missing or malformed values rather than guessing. */
@@ -55,13 +57,13 @@ export function splitLocalDateTime(value: ISODateTime | null): { day: string; ti
 export type DueBucket = 'overdue' | 'today' | 'tomorrow' | 'this_week' | 'next_week' | 'later' | 'no_date'
 
 export const DUE_BUCKET_LABEL: Record<DueBucket, string> = {
-  overdue: 'Overdue',
-  today: 'Due today',
-  tomorrow: 'Due tomorrow',
-  this_week: 'Later this week',
-  next_week: 'Next week',
-  later: 'Later',
-  no_date: 'No due date',
+  overdue: msg('Overdue'),
+  today: msg('Due today'),
+  tomorrow: msg('Due tomorrow'),
+  this_week: msg('Later this week'),
+  next_week: msg('Next week'),
+  later: msg('Later'),
+  no_date: msg('No due date'),
 }
 
 /**
@@ -83,22 +85,22 @@ export function dueBucket(dueAt: ISODateTime | null, now: Date, weekStartsOn: 0 
 }
 
 /** Short human label: "Today 11:59 PM", "Tomorrow 9:00 AM", "Fri 5:00 PM", "Nov 12". */
-export function formatDue(dueAt: ISODateTime | null, now: Date): string {
+export function formatDue(dueAt: ISODateTime | null, now: Date, withTime = true): string {
   const d = parseInstant(dueAt)
-  if (!d) return 'No due date'
+  if (!d) return tr('No due date')
   const days = differenceInCalendarDays(d, now)
-  const time = format(d, 'h:mm a')
-  if (days === 0) return `Today ${time}`
-  if (days === 1) return `Tomorrow ${time}`
-  if (days === -1) return `Yesterday ${time}`
-  if (days > 1 && days < 7) return `${format(d, 'EEE')} ${time}`
-  if (d.getFullYear() === now.getFullYear()) return `${format(d, 'MMM d')}, ${time}`
-  return format(d, 'MMM d, yyyy')
+  const time = withTime ? ` ${fmtDate(d, 'h:mm a')}` : ''
+  if (days === 0) return `${tr('Today')}${time}`
+  if (days === 1) return `${tr('Tomorrow')}${time}`
+  if (days === -1) return `${tr('Yesterday')}${time}`
+  if (days > 1 && days < 7) return `${fmtDate(d, 'EEE')}${time}`
+  if (d.getFullYear() === now.getFullYear()) return `${fmtDate(d, 'MMM d')}${withTime ? `,${time}` : ''}`
+  return fmtDate(d, 'MMM d, yyyy')
 }
 
 /** Day-only version of formatDue: "Today", "Fri", "Nov 5". */
 export function formatDueDay(dueAt: ISODateTime | null, now: Date): string {
-  return formatDue(dueAt, now).replace(/,? \d+:\d+ [AP]M$/, '')
+  return formatDue(dueAt, now, false)
 }
 
 /** Relative distance: "in 3h", "2d overdue". */
@@ -111,7 +113,7 @@ export function formatRelative(dueAt: ISODateTime | null, now: Date): string {
   if (abs < 60) span = `${Math.max(abs, 1)}m`
   else if (abs < 60 * 48) span = `${Math.round(abs / 60)}h`
   else span = `${Math.round(abs / 1440)}d`
-  return mins < 0 ? `${span} overdue` : `in ${span}`
+  return mins < 0 ? tr('{span} overdue', { span }) : tr('in {span}', { span })
 }
 
 export function formatMinutes(mins: number | null | undefined): string {
@@ -134,8 +136,8 @@ export function nextDays(from: Date, count: number): Date[] {
 
 export function greeting(now: Date): string {
   const h = now.getHours()
-  if (h < 5) return 'Working late'
-  if (h < 12) return 'Good morning'
-  if (h < 18) return 'Good afternoon'
-  return 'Good evening'
+  if (h < 5) return tr('Working late')
+  if (h < 12) return tr('Good morning')
+  if (h < 18) return tr('Good afternoon')
+  return tr('Good evening')
 }

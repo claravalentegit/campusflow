@@ -1,6 +1,8 @@
 import { addDays, differenceInCalendarDays, startOfDay } from 'date-fns'
 import { parseInstant, toLocalDay } from './dates'
 import type { Assignment, AssignmentType, LocalDay } from './types'
+import { tr } from '@/i18n/core'
+import { msg } from '@/i18n/langs'
 
 export interface SuggestedStep {
   title: string
@@ -11,68 +13,68 @@ export interface SuggestedStep {
 /** Each template step carries the share of the total estimate it typically takes. */
 const TEMPLATES: Record<AssignmentType, Array<[string, number]>> = {
   essay: [
-    ['Review the assignment instructions and rubric', 0.05],
-    ['Find and evaluate sources', 0.2],
-    ['Create an outline and thesis', 0.1],
-    ['Draft the introduction and main sections', 0.35],
-    ['Revise and verify citations', 0.2],
-    ['Proofread and prepare the final submission', 0.1],
+    [msg('Review the assignment instructions and rubric'), 0.05],
+    [msg('Find and evaluate sources'), 0.2],
+    [msg('Create an outline and thesis'), 0.1],
+    [msg('Draft the introduction and main sections'), 0.35],
+    [msg('Revise and verify citations'), 0.2],
+    [msg('Proofread and prepare the final submission'), 0.1],
   ],
   problem_set: [
-    ['Read the problems and note what each one asks', 0.1],
-    ['Review the related lecture notes and examples', 0.15],
-    ['Work through the first half of the problems', 0.3],
-    ['Work through the remaining problems', 0.3],
-    ['Check answers and write up clean solutions', 0.15],
+    [msg('Read the problems and note what each one asks'), 0.1],
+    [msg('Review the related lecture notes and examples'), 0.15],
+    [msg('Work through the first half of the problems'), 0.3],
+    [msg('Work through the remaining problems'), 0.3],
+    [msg('Check answers and write up clean solutions'), 0.15],
   ],
   project: [
-    ['Clarify requirements and deliverables', 0.08],
-    ['Plan the approach and split the work', 0.12],
-    ['Build the first working version', 0.35],
-    ['Complete remaining features or sections', 0.25],
-    ['Test, review, and polish', 0.12],
-    ['Package and submit the deliverables', 0.08],
+    [msg('Clarify requirements and deliverables'), 0.08],
+    [msg('Plan the approach and split the work'), 0.12],
+    [msg('Build the first working version'), 0.35],
+    [msg('Complete remaining features or sections'), 0.25],
+    [msg('Test, review, and polish'), 0.12],
+    [msg('Package and submit the deliverables'), 0.08],
   ],
   lab: [
-    ['Read the lab handout and pre-lab questions', 0.15],
-    ['Organize the collected data', 0.2],
-    ['Run the analysis and make figures', 0.3],
-    ['Write the report sections', 0.25],
-    ['Check formatting and submit', 0.1],
+    [msg('Read the lab handout and pre-lab questions'), 0.15],
+    [msg('Organize the collected data'), 0.2],
+    [msg('Run the analysis and make figures'), 0.3],
+    [msg('Write the report sections'), 0.25],
+    [msg('Check formatting and submit'), 0.1],
   ],
   quiz: [
-    ['List the topics the quiz covers', 0.15],
-    ['Review notes and readings', 0.45],
-    ['Do practice questions', 0.4],
+    [msg('List the topics the quiz covers'), 0.15],
+    [msg('Review notes and readings'), 0.45],
+    [msg('Do practice questions'), 0.4],
   ],
   exam: [
-    ['Collect the exam topics and past materials', 0.1],
-    ['Review lecture notes topic by topic', 0.3],
-    ['Do practice problems or a past exam', 0.3],
-    ['Review mistakes and weak topics', 0.2],
-    ['Final light review', 0.1],
+    [msg('Collect the exam topics and past materials'), 0.1],
+    [msg('Review lecture notes topic by topic'), 0.3],
+    [msg('Do practice problems or a past exam'), 0.3],
+    [msg('Review mistakes and weak topics'), 0.2],
+    [msg('Final light review'), 0.1],
   ],
   reading: [
-    ['Skim headings and summary', 0.15],
-    ['Read and annotate', 0.65],
-    ['Write a short summary of key ideas', 0.2],
+    [msg('Skim headings and summary'), 0.15],
+    [msg('Read and annotate'), 0.65],
+    [msg('Write a short summary of key ideas'), 0.2],
   ],
   discussion: [
-    ['Read the prompt and required material', 0.4],
-    ['Draft the initial post', 0.4],
-    ['Reply to classmates', 0.2],
+    [msg('Read the prompt and required material'), 0.4],
+    [msg('Draft the initial post'), 0.4],
+    [msg('Reply to classmates'), 0.2],
   ],
   presentation: [
-    ['Clarify the topic and time limit', 0.1],
-    ['Research and collect content', 0.25],
-    ['Build the slides', 0.3],
-    ['Rehearse and time it', 0.25],
-    ['Final review', 0.1],
+    [msg('Clarify the topic and time limit'), 0.1],
+    [msg('Research and collect content'), 0.25],
+    [msg('Build the slides'), 0.3],
+    [msg('Rehearse and time it'), 0.25],
+    [msg('Final review'), 0.1],
   ],
   other: [
-    ['Review what is required', 0.15],
-    ['Do the main work', 0.65],
-    ['Check and submit', 0.2],
+    [msg('Review what is required'), 0.15],
+    [msg('Do the main work'), 0.65],
+    [msg('Check and submit'), 0.2],
   ],
 }
 
@@ -104,7 +106,7 @@ export function suggestBreakdown(
   return template.map(([title, share], i) => {
     const day = days.length ? days[Math.min(days.length - 1, Math.floor((i * days.length) / template.length))] : null
     return {
-      title,
+      title: tr(title),
       estimatedMinutes: total ? roundTo5(total * share) : null,
       plannedFor: day ? toLocalDay(day) : null,
     }

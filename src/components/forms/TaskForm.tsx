@@ -5,8 +5,11 @@ import { useStore } from '@/store/appStore'
 import { toast } from '@/store/ui'
 import { Field, Input } from '../ui/Field'
 import { AssignmentSelect, CourseSelect, EstimateSelect, PrioritySelect, trimOrError } from './shared'
+import { useT } from '@/i18n'
+import { msg } from '@/i18n/langs'
 
 export function TaskForm({ formId, initial, preset, onDone }: { formId: string; initial?: StudyTask; preset?: { courseId?: string | null; assignmentId?: string | null; day?: string }; onDone: (t: StudyTask) => void }) {
+  const tt = useT()
   const add = useStore((s) => s.addTask)
   const update = useStore((s) => s.updateTask)
   const assignments = useStore((s) => s.assignments)
@@ -24,7 +27,7 @@ export function TaskForm({ formId, initial, preset, onDone }: { formId: string; 
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
-    const err = trimOrError(title, 'Title')
+    const err = trimOrError(title, msg('Title'))
     setError(err)
     if (err) return document.getElementById(`${formId}-title`)?.focus()
     const linked = assignmentId ? assignments.find((a) => a.id === assignmentId) : undefined
@@ -39,12 +42,12 @@ export function TaskForm({ formId, initial, preset, onDone }: { formId: string; 
     }
     if (initial) {
       update(initial.id, fields)
-      toast('Task updated')
+      toast(tt('Task updated'))
       onDone({ ...initial, ...fields })
     } else {
       const position = Math.max(0, ...tasks.filter((t) => t.assignmentId === assignmentId).map((t) => t.position + 1))
       const created = add({ ...fields, done: false, position, createdAt: new Date().toISOString(), completedAt: null })
-      toast('Task added')
+      toast(tt('Task added'))
       onDone(created)
     }
   }

@@ -20,6 +20,8 @@ export interface ParentLink {
   linkedAt: string
   lastSeenAt: string | null
   removedAt: string | null
+  /** When this parent last finished the weekly guide (shown to the student). */
+  guideDoneAt?: string | null
 }
 
 interface StudentRec {
@@ -176,6 +178,16 @@ export function family(kv: Kv, now: () => number = Date.now) {
       }
       const snap = await kv.get<Snapshot>('snap', studentId)
       return { studentName: s.name, updatedAt: snap?.updatedAt ?? null, data: snap?.data ?? null }
+    },
+
+    /** The parent finished the weekly guide: the student sees a small note. */
+    async guideDone(token: string | undefined, studentId: string) {
+      const p = await parentFromToken(token)
+      if (!p || !p.rec.students.includes(studentId)) throw new FamilyError(404, 'Not found.')
+      const s = await student(studentId)
+      const link = s?.parents.find((x) => x.id === p.id)
+      if (!s || !link || link.removedAt) throw new FamilyError(410, 'Sharing stopped.')
+      await kv.set('student', studentId, { ...s, parents: s.parents.map((x) => (x.id === p.id ? { ...x, guideDoneAt: iso() } : x)) })
     },
 
     /** "Unlink this phone": the parent leaves every student; students see them as removed. */

@@ -2,6 +2,7 @@ import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from './cn'
 import { Tooltip } from './Tooltip'
+import { useT } from '@/i18n'
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'subtle' | 'success' | 'gold'
 type Size = 'sm' | 'md' | 'lg'
@@ -66,6 +67,8 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
   { icon: Icon, label, variant = 'ghost', size = 'md', tooltip = true, tooltipSide = 'bottom', className, badge, type = 'button', ...rest },
   ref,
 ) {
+  const t = useT()
+  label = t(label)
   const button = (
     <button
       ref={ref}

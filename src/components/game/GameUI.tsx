@@ -5,6 +5,7 @@ import { badgeDef, levelFor, levelTitle, streak, totalXp, type BadgeDef, type Ba
 import { useStore } from '@/store/appStore'
 import { XP_TARGET_ID } from '@/game/fx'
 import { cn } from '../ui/cn'
+import { tr } from '@/i18n/core'
 
 export function useXp() {
   const events = useStore((s) => s.xpEvents)
@@ -65,7 +66,7 @@ export function XpPill({ className }: { className?: string }) {
     ref.current.querySelector('svg')?.animate([{ transform: 'rotate(0) scale(1)' }, { transform: 'rotate(144deg) scale(1.5)' }, { transform: 'rotate(144deg) scale(1)' }], { duration: 500, easing: 'ease-out' })
   }, [bump])
   return (
-    <span ref={ref} id={XP_TARGET_ID} className={cn('tabular inline-flex h-9 items-center gap-1.5 rounded-full border-2 border-gold/40 bg-gold-soft px-3 text-sm font-black text-gold-text', className)} title="Your total XP">
+    <span ref={ref} id={XP_TARGET_ID} className={cn('tabular inline-flex h-9 items-center gap-1.5 rounded-full border-2 border-gold/40 bg-gold-soft px-3 text-sm font-black text-gold-text', className)} title={tr('Your total XP')}>
       <Star className="size-4 fill-gold text-gold" aria-hidden />
       <AnimatedNumber value={total} delay={0.75} />
       <span className="sr-only"> XP</span>

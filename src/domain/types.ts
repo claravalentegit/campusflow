@@ -338,6 +338,8 @@ export interface Preferences {
   familySharing: boolean
   /** Assignments the student skipped: hidden everywhere in CampusFlow and ignored by future syncs. */
   skipped: SkippedAssignment[]
+  /** App language. English by default. */
+  language: 'en' | 'es' | 'pt'
 }
 
 /** A skipped assignment, kept so it can be restored. Skipping never changes anything on Canvas. */

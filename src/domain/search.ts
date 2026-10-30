@@ -1,3 +1,4 @@
+import { tr } from '@/i18n/core'
 import type { AppData } from './types'
 
 export type SearchCategory = 'course' | 'assignment' | 'task'
@@ -41,7 +42,7 @@ export function searchAll(data: AppData, rawQuery: string, limitPerCategory = 6)
         category: 'task',
         id: t.id,
         title: t.title,
-        subtitle: t.courseId ? (courseName.get(t.courseId) ?? '') : 'Study task',
+        subtitle: t.courseId ? (courseName.get(t.courseId) ?? '') : tr('Study task'),
         courseId: t.courseId,
         href: t.assignmentId ? `/?open=${t.assignmentId}` : `#task:${t.id}`,
       },

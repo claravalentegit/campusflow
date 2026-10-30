@@ -2,6 +2,10 @@ import { useEffect, useId, useState } from 'react'
 import { motion, useAnimationControls, useReducedMotion } from 'motion/react'
 import type { PetMood, PetSpecies, PetStage } from '@/domain/pet'
 import { cn } from '@/components/ui/cn'
+import { tr } from '@/i18n/core'
+import { msg } from '@/i18n/langs'
+
+const MOOD_LABEL = { happy: msg('happy'), ok: msg('okay'), worried: msg('worried'), sleepy: msg('sleepy') } as const
 
 const INK = '#1d1a2b'
 const SCALE: Record<PetStage, number> = { egg: 1, baby: 0.66, kid: 0.8, teen: 0.9, adult: 1, legend: 1 }
@@ -191,7 +195,7 @@ export function Pet({ species, mood, stage, size = 96, className, label }: { spe
         <PetArt species={species} mood={cheer ? 'happy' : mood} stage={stage} size={size} />
       </span>
       <span id={id} className="sr-only">
-        {cheer ? 'Cheering' : mood}
+        {cheer ? tr('Cheering') : tr(MOOD_LABEL[mood])}
       </span>
     </motion.button>
   )

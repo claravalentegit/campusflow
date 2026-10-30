@@ -4,6 +4,7 @@ import { sfx } from '@/game/fx'
 import { CheckCircle2, Info, X, XCircle } from 'lucide-react'
 import { useUi } from '@/store/ui'
 import { cn } from './cn'
+import { tr } from '@/i18n/core'
 
 const ICON = { success: CheckCircle2, error: XCircle, info: Info }
 const TILE = { success: 'bg-success-bright [--press:var(--success-press)]', error: 'bg-danger [--press:rgb(0_0_0/0.25)]', info: 'bg-accent [--press:var(--accent-press)]' }
@@ -47,7 +48,7 @@ export function Toaster() {
                   {t.action.label}
                 </button>
               )}
-              <button type="button" aria-label="Dismiss notification" onClick={() => dismiss(t.id)} className="shrink-0 rounded-lg p-1 text-fg-3 hover:bg-surface-2 hover:text-fg">
+              <button type="button" aria-label={tr('Dismiss notification')} onClick={() => dismiss(t.id)} className="shrink-0 rounded-lg p-1 text-fg-3 hover:bg-surface-2 hover:text-fg">
                 <X className="size-4" aria-hidden />
               </button>
             </motion.div>

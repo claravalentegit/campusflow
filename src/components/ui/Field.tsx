@@ -1,16 +1,26 @@
 import { forwardRef, useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { cn } from './cn'
+import { useT } from '@/i18n'
+import { msg } from '@/i18n/langs'
 
 const CONTROL =
   'w-full rounded-xl border-2 border-line bg-surface px-3 text-sm font-semibold text-fg placeholder:font-medium placeholder:text-fg-3 transition-[border-color,box-shadow] hover:border-line-strong focus:border-accent focus:shadow-[0_0_0_4px_var(--accent-soft)] focus:outline-none disabled:opacity-60 aria-[invalid=true]:border-danger aria-[invalid=true]:shadow-[0_0_0_4px_var(--danger-soft)]'
 
-export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Input({ className, ...rest }, ref) {
-  return <input ref={ref} className={cn(CONTROL, 'h-11', className)} {...rest} />
+// Plain-text labels, hints, errors and placeholders are translated here, so forms don't have to.
+const useTx = () => {
+  const t = useT()
+  return <V,>(v: V): V => (typeof v === 'string' ? (t(v) as V) : v)
+}
+
+export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Input({ className, placeholder, ...rest }, ref) {
+  const tx = useTx()
+  return <input ref={ref} className={cn(CONTROL, 'h-11', className)} placeholder={tx(placeholder)} {...rest} />
 })
 
-export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(function Textarea({ className, ...rest }, ref) {
-  return <textarea ref={ref} className={cn(CONTROL, 'min-h-20 py-2.5 leading-5', className)} {...rest} />
+export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(function Textarea({ className, placeholder, ...rest }, ref) {
+  const tx = useTx()
+  return <textarea ref={ref} className={cn(CONTROL, 'min-h-20 py-2.5 leading-5', className)} placeholder={tx(placeholder)} {...rest} />
 })
 
 export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement>>(function Select({ className, children, ...rest }, ref) {
@@ -40,20 +50,21 @@ export function Field({ label, hint, error, className, optional, id: explicitId,
   const autoId = useId()
   const id = explicitId ?? autoId
   const describedBy = error ? `${id}-err` : hint ? `${id}-hint` : undefined
+  const tx = useTx()
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>
       <label htmlFor={id} className="text-sm font-extrabold text-fg">
-        {label}
-        {optional && <span className="ml-1.5 text-xs font-bold text-fg-3">optional</span>}
+        {tx(label)}
+        {optional && <span className="ml-1.5 text-xs font-bold text-fg-3">{tx(msg('optional'))}</span>}
       </label>
       {children({ id, 'aria-invalid': error ? true : undefined, 'aria-describedby': describedBy })}
       {error ? (
         <p id={`${id}-err`} className="text-xs font-bold text-danger" role="alert">
-          {error}
+          {tx(error)}
         </p>
       ) : hint ? (
         <p id={`${id}-hint`} className="text-xs font-semibold text-fg-3">
-          {hint}
+          {tx(hint)}
         </p>
       ) : null}
     </div>

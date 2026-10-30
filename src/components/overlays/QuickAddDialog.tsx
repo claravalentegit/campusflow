@@ -7,10 +7,12 @@ import { CourseForm } from '../forms/CourseForm'
 import { Button } from '../ui/Button'
 import { Dialog } from '../ui/Dialog'
 import { Segmented } from '../ui/Segmented'
+import { useT } from '@/i18n'
+import { msg } from '@/i18n/langs'
 
 const KINDS: Array<{ value: QuickAddKind | 'course'; label: string }> = [
-  { value: 'assignment', label: 'Assignment' },
-  { value: 'task', label: 'To-do' },
+  { value: 'assignment', label: msg('Assignment') },
+  { value: 'task', label: msg('To-do') },
 ]
 
 export function QuickAddDialog() {
@@ -22,21 +24,22 @@ export function QuickAddDialog() {
   const kind = preset?.kind ?? 'assignment'
   const formId = `quick-${kind}`
   const showCourseForm = kind === 'assignment' && !hasCourses
+  const t = useT()
 
   return (
     <Dialog
       open={!!preset}
       onClose={close}
-      title="Add"
-      description="Everything you add earns XP when you finish it."
+      title={t('Add')}
+      description={t('Everything you add earns XP when you finish it.')}
       footer={
         <>
           <span className="mr-auto hidden text-2xs text-fg-3 sm:inline">
-            <kbd className="rounded border border-line px-1 font-sans">Enter</kbd> to save · <kbd className="rounded border border-line px-1 font-sans">Esc</kbd> to cancel
+            <kbd className="rounded border border-line px-1 font-sans">Enter</kbd> {t('to save')} · <kbd className="rounded border border-line px-1 font-sans">Esc</kbd> {t('to cancel')}
           </span>
-          <Button onClick={close}>Cancel</Button>
+          <Button onClick={close}>{t('Cancel')}</Button>
           <Button variant="primary" type="submit" form={showCourseForm ? 'quick-course' : formId}>
-            {showCourseForm ? 'Add course' : 'Save'}
+            {showCourseForm ? t('Add course') : t('Save')}
           </Button>
         </>
       }
@@ -44,16 +47,16 @@ export function QuickAddDialog() {
       {preset && (
         <div className="flex flex-col gap-5">
           <div className="scrollbar-thin relative -mx-1 overflow-x-auto px-1">
-            <Segmented label="What to add" value={kind} onChange={(k) => open({ ...preset, kind: k as QuickAddKind })} options={KINDS as Array<{ value: QuickAddKind; label: string }>} />
+            <Segmented label={t('What to add')} value={kind} onChange={(k) => open({ ...preset, kind: k as QuickAddKind })} options={KINDS as Array<{ value: QuickAddKind; label: string }>} />
           </div>
           {kind === 'assignment' &&
             (showCourseForm ? (
               <div className="flex flex-col gap-3">
-                <p className="text-sm text-fg-2">Assignments belong to a course. Add your first course to continue.</p>
+                <p className="text-sm text-fg-2">{t('Assignments belong to a course. Add your first course to continue.')}</p>
                 <CourseForm formId="quick-course" onDone={(c) => open({ kind: 'assignment', courseId: c.id })} />
               </div>
             ) : (
-              <AssignmentForm key={formId} formId={formId} preset={preset} onDone={(a) => { close(); useUi.getState().toast(`Added “${a.title}”`, 'success', { label: 'Open', run: () => navigate(`/?open=${a.id}`) }) }} />
+              <AssignmentForm key={formId} formId={formId} preset={preset} onDone={(a) => { close(); useUi.getState().toast(t('Added “{title}”', { title: a.title }), 'success', { label: t('Open'), run: () => navigate(`/?open=${a.id}`) }) }} />
             ))}
           {kind === 'task' && <TaskForm formId={formId} preset={preset} onDone={close} />}
         </div>

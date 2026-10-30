@@ -1,4 +1,5 @@
 import { BookOpen, Route, Swords, UserRound, type LucideIcon } from 'lucide-react'
+import { msg } from '@/i18n/langs'
 
 export interface NavItem {
   to: string
@@ -8,10 +9,10 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { to: '/', label: 'Today', icon: Swords, end: true },
-  { to: '/plan', label: 'Plan', icon: Route },
-  { to: '/courses', label: 'Courses', icon: BookOpen },
-  { to: '/me', label: 'Me', icon: UserRound },
+  { to: '/', label: msg('Today'), icon: Swords, end: true },
+  { to: '/plan', label: msg('Plan'), icon: Route },
+  { to: '/courses', label: msg('Courses'), icon: BookOpen },
+  { to: '/me', label: msg('Me'), icon: UserRound },
 ]
 
-export const DATA_MODE_LABEL = { demo: 'Demo data', manual: 'Your data', canvas: 'Canvas (read-only)' } as const
+export const DATA_MODE_LABEL = { demo: msg('Demo data'), manual: msg('Your data'), canvas: msg('Canvas (read-only)') } as const

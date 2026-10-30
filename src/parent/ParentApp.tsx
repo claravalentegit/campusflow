@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { differenceInCalendarDays, format, formatDistanceToNowStrict, isSameDay } from 'date-fns'
-import { ChevronDown, Flame, Globe, Lightbulb, LogOut, Megaphone, UserPlus } from 'lucide-react'
+import { ChevronDown, Flame, Lightbulb, LogOut, Megaphone, Settings, UserPlus } from 'lucide-react'
 import { isAssignmentDone, isAssignmentOverdue, lockState } from '@/domain/assignments'
 import { parseInstant } from '@/domain/dates'
 import { letterGrade, summarizeCourseGrades } from '@/domain/grades'
@@ -13,13 +13,16 @@ import { courseColor } from '@/components/course'
 import { Ring } from '@/components/game/GameUI'
 import { BrandMark } from '@/components/layout/Brand'
 import { Button } from '@/components/ui/Button'
-import { confirm, ConfirmHost } from '@/components/ui/Dialog'
+import { confirm, ConfirmHost, Dialog } from '@/components/ui/Dialog'
+import { LanguagePicker } from '@/components/LanguagePicker'
+import { isLang } from '@/i18n/langs'
+import { ParentGuide } from './ParentGuide'
 import { Toaster } from '@/components/ui/Toaster'
 import { cn } from '@/components/ui/cn'
 import { DATE_LOCALE, fill, STRINGS, type Lang, type Strings } from './i18n'
 
 /**
- * CampusFlow Family: what a linked parent sees. Read-only, in plain words, in English or Spanish.
+ * CampusFlow Family: what a linked parent sees. Read-only, in plain words, in English, Spanish or Portuguese.
  * Everything comes from the snapshot the student's own CampusFlow shares.
  */
 
@@ -40,11 +43,11 @@ function useLang(): [Lang, (l: Lang) => void] {
   const [lang, setLang] = useState<Lang>(() => {
     try {
       const saved = localStorage.getItem('campusflow:parent-lang')
-      if (saved === 'en' || saved === 'es') return saved
+      if (isLang(saved)) return saved
     } catch {
       /* ignore */
     }
-    return navigator.language?.startsWith('es') ? 'es' : 'en'
+    return 'en'
   })
   return [
     lang,
@@ -66,6 +69,7 @@ export function ParentApp() {
   const [me, setMe] = useState<Me | null | undefined>(undefined)
   const [joining, setJoining] = useState(!!params.get('code'))
   const [selected, setSelected] = useState<string | null>(null)
+  const [settings, setSettings] = useState(false)
 
   useEffect(() => {
     document.title = t.brand
@@ -92,12 +96,16 @@ export function ParentApp() {
     <div className="min-h-dvh bg-[linear-gradient(#e6f7f7,var(--bg)_320px)] pb-12" style={{ ['--accent' as string]: TEAL }}>
       <header className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 pt-5 pb-2">
         <span className="flex items-center gap-2 text-lg font-black">
-          <BrandMark className="size-8" /> CampusFlow <span style={{ color: TEAL }}>{lang === 'es' ? 'Familia' : 'Family'}</span>
+          <BrandMark className="size-8" /> CampusFlow <span style={{ color: TEAL }}>{t.brand.replace('CampusFlow ', '')}</span>
         </span>
-        <button type="button" onClick={() => setLang(lang === 'en' ? 'es' : 'en')} className="flex items-center gap-1.5 rounded-full border-2 border-line bg-surface px-3 py-1.5 text-sm font-black" aria-label={lang === 'en' ? 'Cambiar a español' : 'Switch to English'}>
-          <Globe className="size-4" aria-hidden /> {lang === 'en' ? 'Español' : 'English'}
+        <button type="button" data-sfx="open" onClick={() => setSettings(true)} className="flex items-center gap-1.5 rounded-full border-2 border-line bg-surface px-3 py-1.5 text-sm font-black">
+          <Settings className="size-4" aria-hidden /> {t.settings}
         </button>
       </header>
+      <Dialog open={settings} onClose={() => setSettings(false)} title={t.settings} size="sm" footer={<Button variant="primary" onClick={() => setSettings(false)} className="bg-[#0ea5a4] [--press:#0b7f7e]">{t.done}</Button>}>
+        <p className="mb-2 text-sm font-black">{t.language}</p>
+        <LanguagePicker value={lang} onChange={setLang} label={t.language} accent={TEAL} />
+      </Dialog>
       <main className="mx-auto max-w-3xl px-4">
         {me === undefined ? null : showJoin ? (
           <Join
@@ -201,7 +209,7 @@ function Join({ t, initialCode, canCancel, onCancel, onLinked }: { t: Strings; i
 function Dashboard({ t, lang, me, selected, onSelect, onAdd, onUnlinked }: { t: Strings; lang: Lang; me: Me; selected: string | null; onSelect: (id: string) => void; onAdd: () => void; onUnlinked: () => void }) {
   const [view, setView] = useState<View | null>(null)
   const [gone, setGone] = useState<string | null>(null)
-  const [tab, setTab] = useState<'week' | 'classes' | 'all'>('week')
+  const [tab, setTab] = useState<Tab>('week')
   const student = me.students.find((s) => s.id === selected)
 
   const load = useCallback(async () => {
@@ -222,7 +230,7 @@ function Dashboard({ t, lang, me, selected, onSelect, onAdd, onUnlinked }: { t: 
   }, [load])
 
   const unlink = async () => {
-    if (!(await confirm({ title: t.unlink, message: fill(t.unlinkConfirm, { name: student?.name ?? '' }), confirmLabel: t.unlink }))) return
+    if (!(await confirm({ title: t.unlink, message: fill(t.unlinkConfirm, { name: student?.name ?? '' }), confirmLabel: t.unlink, cancelLabel: t.cancel }))) return
     await call('/api/parent/unlink', { method: 'POST', body: '{}' }).catch(() => {})
     onUnlinked()
   }
@@ -246,7 +254,7 @@ function Dashboard({ t, lang, me, selected, onSelect, onAdd, onUnlinked }: { t: 
       ) : !view ? null : !view.data ? (
         <div className="card-3d p-6 text-center text-sm font-bold text-fg-2">{fill(t.waiting, { name: student.name })}</div>
       ) : (
-        <StudentView t={t} lang={lang} name={student.name} view={view} data={view.data} tab={tab} setTab={setTab} />
+        <StudentView t={t} lang={lang} studentId={student.id} name={student.name} view={view} data={view.data} tab={tab} setTab={setTab} />
       )}
       <div className="mt-2 flex flex-wrap justify-center gap-2">
         <Button variant="ghost" icon={UserPlus} onClick={onAdd}>
@@ -293,7 +301,9 @@ function status(a: Item, grades: GradeRecord[], now: Date, t: Strings, lang: Lan
   return { text: format(due, 'EEE MMM d', { locale: DATE_LOCALE[lang] }), tone: 'gray', late: false }
 }
 
-function StudentView({ t, lang, name, view, data, tab, setTab }: { t: Strings; lang: Lang; name: string; view: View; data: FamilySnapshot; tab: 'week' | 'classes' | 'all'; setTab: (t: 'week' | 'classes' | 'all') => void }) {
+type Tab = 'week' | 'guide' | 'classes' | 'all'
+
+function StudentView({ t, lang, studentId, name, view, data, tab, setTab }: { t: Strings; lang: Lang; studentId: string; name: string; view: View; data: FamilySnapshot; tab: Tab; setTab: (t: Tab) => void }) {
   const now = useMemo(() => new Date(), [])
   const locale = DATE_LOCALE[lang]
   const courseOf = useMemo(() => new Map(data.courses.map((c) => [c.id, c])), [data.courses])
@@ -321,7 +331,7 @@ function StudentView({ t, lang, name, view, data, tab, setTab }: { t: Strings; l
   return (
     <div className="flex flex-col gap-4" data-testid="parent-view">
       <div>
-        <h1 className="text-3xl font-black tracking-tight">{lang === 'es' ? `Semana de ${name}` : `${name}’s week`}</h1>
+        <h1 className="text-3xl font-black tracking-tight">{lang === 'en' ? `${name}’s week` : `Semana de ${name}`}</h1>
         <p className="text-sm font-bold text-fg-3">
           {view.updatedAt ? fill(t.updated, { ago: formatDistanceToNowStrict(new Date(view.updatedAt), { addSuffix: true, locale }) }) : ''}
           {data.student.streak > 0 && (
@@ -343,7 +353,7 @@ function StudentView({ t, lang, name, view, data, tab, setTab }: { t: Strings; l
       </div>
 
       <div role="tablist" className="flex gap-1 rounded-2xl bg-surface-2 p-1">
-        {(['week', 'classes', 'all'] as const).map((k) => (
+        {(['week', 'guide', 'classes', 'all'] as const).map((k) => (
           <button key={k} role="tab" aria-selected={tab === k} type="button" onClick={() => setTab(k)} className={cn('flex-1 rounded-xl py-2 text-sm font-black', tab === k ? 'bg-surface text-[#0b6b6a] shadow-sm' : 'text-fg-3')}>
             {t[k]}
           </button>
@@ -367,6 +377,8 @@ function StudentView({ t, lang, name, view, data, tab, setTab }: { t: Strings; l
           </div>
         </>
       )}
+
+      {tab === 'guide' && <ParentGuide t={t} lang={lang} name={name} studentId={studentId} data={data} />}
 
       {tab === 'classes' && (
         <ul className="flex flex-col gap-3">

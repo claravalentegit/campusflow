@@ -1,5 +1,7 @@
 import { lateOpen } from './guide'
 import type { XpEvent } from './game'
+import { tr } from '@/i18n/core'
+import { msg } from '@/i18n/langs'
 import type { Assignment } from './types'
 
 /**
@@ -17,22 +19,22 @@ export interface PetChoice {
 }
 
 export const PET_SPECIES: Array<{ id: PetSpecies; kind: string; name: string; blurb: string }> = [
-  { id: 'dragon', kind: 'Baby dragon', name: 'Ember', blurb: 'Little wings and horns' },
-  { id: 'cat', kind: 'Cat blob', name: 'Mochi', blurb: 'Soft, round, cat ears' },
-  { id: 'bunny', kind: 'Bunny', name: 'Puff', blurb: 'Fluffy with long ears' },
-  { id: 'fox', kind: 'Fox', name: 'Sunny', blurb: 'Orange with a fluffy tail' },
-  { id: 'axolotl', kind: 'Axolotl', name: 'Bubbles', blurb: 'Pink with frilly gills' },
+  { id: 'dragon', kind: msg('Baby dragon'), name: 'Ember', blurb: 'Little wings and horns' },
+  { id: 'cat', kind: msg('Cat blob'), name: 'Mochi', blurb: 'Soft, round, cat ears' },
+  { id: 'bunny', kind: msg('Bunny'), name: 'Puff', blurb: 'Fluffy with long ears' },
+  { id: 'fox', kind: msg('Fox'), name: 'Sunny', blurb: 'Orange with a fluffy tail' },
+  { id: 'axolotl', kind: msg('Axolotl'), name: 'Bubbles', blurb: 'Pink with frilly gills' },
 ]
 
 export type PetStage = 'egg' | 'baby' | 'kid' | 'teen' | 'adult' | 'legend'
 
 const STAGES: Array<{ stage: PetStage; label: string; from: number }> = [
-  { stage: 'egg', label: 'Egg', from: 1 },
-  { stage: 'baby', label: 'Baby', from: 2 },
-  { stage: 'kid', label: 'Kid', from: 4 },
-  { stage: 'teen', label: 'Teen', from: 6 },
-  { stage: 'adult', label: 'Grown up', from: 8 },
-  { stage: 'legend', label: 'Legend', from: 12 },
+  { stage: 'egg', label: msg('Egg'), from: 1 },
+  { stage: 'baby', label: msg('Baby'), from: 2 },
+  { stage: 'kid', label: msg('Kid'), from: 4 },
+  { stage: 'teen', label: msg('Teen'), from: 6 },
+  { stage: 'adult', label: msg('Grown up'), from: 8 },
+  { stage: 'legend', label: msg('Legend'), from: 12 },
 ]
 
 export function petStage(level: number): { stage: PetStage; label: string; next: { label: string; at: number } | null } {
@@ -60,12 +62,12 @@ export function petMood(assignments: Assignment[], events: XpEvent[], now: Date)
 export function petLine(mood: PetMood, name: string, late: number): { title: string; text: string } {
   switch (mood) {
     case 'worried':
-      return { title: `${name} is worried`, text: `${late} things are late. Finish one to cheer ${name} up!` }
+      return { title: tr('{name} is worried', { name }), text: tr('{n} things are late. Finish one to cheer {name} up!', { n: late, name }) }
     case 'ok':
-      return { title: `${name} is okay`, text: `1 thing is late. Catch up and ${name} will be all smiles.` }
+      return { title: tr('{name} is okay', { name }), text: tr('1 thing is late. Catch up and {name} will be all smiles.', { name }) }
     case 'sleepy':
-      return { title: `${name} is sleepy`, text: `Nothing finished in a couple of days. Wake ${name} up with a quick win!` }
+      return { title: tr('{name} is sleepy', { name }), text: tr('Nothing finished in a couple of days. Wake {name} up with a quick win!', { name }) }
     default:
-      return { title: `${name} is happy`, text: 'Nothing late. Keep it up!' }
+      return { title: tr('{name} is happy', { name }), text: tr('Nothing late. Keep it up!') }
   }
 }

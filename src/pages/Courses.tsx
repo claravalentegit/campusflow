@@ -24,30 +24,32 @@ import { confirm, Dialog } from '@/components/ui/Dialog'
 import { Menu } from '@/components/ui/Menu'
 import { Segmented } from '@/components/ui/Segmented'
 import { cn } from '@/components/ui/cn'
+import { dateLocale, fmtDate, useT } from '@/i18n'
 
 export function useCourseActions() {
   const update = useStore((s) => s.updateCourse)
   const remove = useStore((s) => s.deleteCourse)
   const assignments = useStore((s) => s.assignments)
   const edit = useUi((s) => s.edit)
+  const t = useT()
   return (c: Course, onDeleted?: () => void) => [
-    { label: 'Edit class', icon: Pencil, onSelect: () => edit({ kind: 'course', id: c.id }) },
+    { label: t('Edit class'), icon: Pencil, onSelect: () => edit({ kind: 'course', id: c.id }) },
     c.hidden
-      ? { label: 'Show on Today', icon: Eye, onSelect: () => { update(c.id, { hidden: false }); toast(`${c.name} is visible again`) } }
-      : { label: 'Hide from Today', icon: EyeOff, onSelect: () => { update(c.id, { hidden: true }); toast(`${c.name} hidden`, 'info', { label: 'Undo', run: () => update(c.id, { hidden: false }) }) } },
+      ? { label: t('Show on Today'), icon: Eye, onSelect: () => { update(c.id, { hidden: false }); toast(t('{name} is visible again', { name: c.name })) } }
+      : { label: t('Hide from Today'), icon: EyeOff, onSelect: () => { update(c.id, { hidden: true }); toast(t('{name} hidden', { name: c.name }), 'info', { label: t('Undo'), run: () => update(c.id, { hidden: false }) }) } },
     c.status === 'archived'
-      ? { label: 'Restore', icon: ArchiveRestore, onSelect: () => { update(c.id, { status: 'active' }); toast(`${c.name} restored`) } }
-      : { label: 'Archive', icon: Archive, onSelect: () => { const prev = c.status; update(c.id, { status: 'archived' }); toast(`${c.name} archived`, 'info', { label: 'Undo', run: () => update(c.id, { status: prev }) }) } },
+      ? { label: t('Restore'), icon: ArchiveRestore, onSelect: () => { update(c.id, { status: 'active' }); toast(t('{name} restored', { name: c.name })) } }
+      : { label: t('Archive'), icon: Archive, onSelect: () => { const prev = c.status; update(c.id, { status: 'archived' }); toast(t('{name} archived', { name: c.name }), 'info', { label: t('Undo'), run: () => update(c.id, { status: prev }) }) } },
     'separator' as const,
     {
-      label: 'Delete class',
+      label: t('Delete class'),
       icon: Trash2,
       tone: 'danger' as const,
       onSelect: async () => {
         const n = assignments.filter((a) => a.courseId === c.id).length
-        if (await confirm({ title: `Delete ${c.name}?`, message: `This removes the class and its ${n} assignment${n === 1 ? '' : 's'} from CampusFlow. XP you already earned stays.${c.source === 'canvas' ? ' Nothing is deleted from Canvas.' : ''}`, confirmLabel: 'Delete class' })) {
+        if (await confirm({ title: t('Delete {name}?', { name: c.name }), message: `${t('This removes the class and its {n} assignments from CampusFlow. XP you already earned stays.', { n })}${c.source === 'canvas' ? ` ${t('Nothing is deleted from Canvas.')}` : ''}`, confirmLabel: t('Delete class') })) {
           remove(c.id)
-          toast(`${c.name} deleted`)
+          toast(t('{name} deleted', { name: c.name }))
           onDeleted?.()
         }
       },
@@ -56,7 +58,8 @@ export function useCourseActions() {
 }
 
 export function Courses() {
-  usePageTitle('Courses')
+  const t = useT()
+  usePageTitle(t('Courses'))
   const courses = useStore((s) => s.courses)
   const [params, setParams] = useSearchParams()
   const [filter, setFilter] = useState<CourseStatus>('active')
@@ -76,30 +79,30 @@ export function Courses() {
   return (
     <Page className="max-w-3xl">
       <PageHeader
-        title="Courses"
-        description={view === 'all' ? 'Every assignment, in order of due date. Check off anything.' : 'Tap a class to see how it’s going.'}
+        title={t('Courses')}
+        description={view === 'all' ? t('Every assignment, in order of due date. Check off anything.') : t('Tap a class to see how it’s going.')}
         actions={
           view === 'classes' && (
             <Button variant="primary" icon={Plus} onClick={() => setAdding(true)}>
-              Add class
+              {t('Add class')}
             </Button>
           )
         }
       />
-      <Segmented className="mb-4" label="View" value={view} onChange={setView} options={[{ value: 'classes', label: 'Classes' }, { value: 'all', label: 'All assignments' }]} />
+      <Segmented className="mb-4" label={t('View')} value={view} onChange={setView} options={[{ value: 'classes', label: t('Classes') }, { value: 'all', label: t('All assignments') }]} />
       {view === 'all' ? (
         <AllAssignments />
       ) : (
         <>
       {courses.some((c) => c.status !== 'active') && (
-        <Segmented className="mb-4" label="Show" value={filter} onChange={setFilter} options={[{ value: 'active', label: 'Current' }, { value: 'completed', label: 'Finished' }, { value: 'archived', label: 'Archived' }]} />
+        <Segmented className="mb-4" label={t('Show')} value={filter} onChange={setFilter} options={[{ value: 'active', label: t('Current') }, { value: 'completed', label: t('Finished') }, { value: 'archived', label: t('Archived') }]} />
       )}
       {list.length === 0 ? (
         <div className="card-3d px-6 py-12 text-center">
-          <p className="text-lg font-black">{filter === 'active' ? 'No classes yet' : `No ${filter === 'completed' ? 'finished' : 'archived'} classes`}</p>
+          <p className="text-lg font-black">{filter === 'active' ? t('No classes yet') : filter === 'completed' ? t('No finished classes') : t('No archived classes')}</p>
           {filter === 'active' && (
             <Button variant="primary" icon={Plus} className="mt-4" onClick={() => setAdding(true)}>
-              Add class
+              {t('Add class')}
             </Button>
           )}
         </div>
@@ -115,12 +118,12 @@ export function Courses() {
       <Dialog
         open={adding}
         onClose={() => setAdding(false)}
-        title="Add class"
+        title={t('Add class')}
         footer={
           <>
-            <Button onClick={() => setAdding(false)}>Cancel</Button>
+            <Button onClick={() => setAdding(false)}>{t('Cancel')}</Button>
             <Button variant="primary" type="submit" form="add-course">
-              Add class
+              {t('Add class')}
             </Button>
           </>
         }
@@ -145,6 +148,7 @@ function CourseCard({ c, index, open, onToggle }: { c: Course; index: number; op
   const announcements = useStore((s) => s.announcements)
   const canvasHost = useStore((s) => s.prefs.canvasHost)
   const actions = useCourseActions()
+  const t = useT()
 
   const mine = assignments.filter((a) => a.courseId === c.id)
   const openWork = mine.filter((a) => !isAssignmentDone(a))
@@ -155,7 +159,7 @@ function CourseCard({ c, index, open, onToggle }: { c: Course; index: number; op
   const guide = useGuide().find((g) => g.course.id === c.id)
   const target = c.targetGrade != null && pct != null ? requiredForTarget(summary, c.targetGrade) : null
   const latest = announcements.filter((n) => n.courseId === c.id).sort((x, y) => y.postedAt.localeCompare(x.postedAt))[0]
-  const source = summary.sources.includes('canvas') ? 'from Canvas' : summary.sources.includes('demo') ? 'demo grades' : summary.sources.length ? 'grades you entered' : null
+  const source = summary.sources.includes('canvas') ? t('from Canvas') : summary.sources.includes('demo') ? t('demo grades') : summary.sources.length ? t('grades you entered') : null
   const canvasUrl = c.canvasId && canvasHost ? `https://${canvasHost}/courses/${c.canvasId}` : null
   const tone = pct == null ? 'var(--surface-3)' : pct >= 90 ? 'var(--success-bright)' : pct >= 80 ? courseColor(c.color) : pct >= 70 ? 'var(--gold)' : 'var(--danger)'
   const Icon = COURSE_ICON[c.icon]
@@ -175,8 +179,8 @@ function CourseCard({ c, index, open, onToggle }: { c: Course; index: number; op
         <button type="button" onClick={onToggle} aria-expanded={open} data-sfx={open ? 'close' : 'open'} className="min-w-0 flex-1 text-left outline-none after:absolute after:inset-0 focus-visible:underline">
           <span className="block truncate text-lg font-black">{c.name}</span>
           <span className="block truncate text-sm font-bold text-fg-2">
-            {late.length > 0 && <span className="text-danger">{late.length} late · </span>}
-            {upcoming[0] ? `Next: ${upcoming[0].title}, ${formatDueDay(upcoming[0].dueAt, now)}` : openWork.length ? `${openWork.length} open` : 'Nothing due 🎉'}
+            {late.length > 0 && <span className="text-danger">{t('{n} late', { n: late.length })} · </span>}
+            {upcoming[0] ? t('Next: {title}, {when}', { title: upcoming[0].title, when: formatDueDay(upcoming[0].dueAt, now) }) : openWork.length ? t('{n} open', { n: openWork.length }) : t('Nothing due 🎉')}
           </span>
         </button>
         <Ring value={pct == null ? 0 : Math.min(1, pct / 100)} size={54} stroke={9} track="var(--surface-3)" color={tone}>
@@ -189,9 +193,9 @@ function CourseCard({ c, index, open, onToggle }: { c: Course; index: number; op
         {open && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ type: 'spring', stiffness: 380, damping: 34 }}>
             <div className="flex flex-col gap-4 border-t-2 border-dashed border-line p-4 sm:px-5" data-testid="course-details">
-              <section aria-label="Grade">
+              <section aria-label={t('Grade')}>
                 <p className="flex flex-wrap items-baseline gap-x-2">
-                  <span className="text-2xl font-black">{pct == null ? 'No grades yet' : `${pct.toFixed(1)}% · ${letterGrade(pct)}`}</span>
+                  <span className="text-2xl font-black">{pct == null ? t('No grades yet') : `${pct.toFixed(1)}% · ${letterGrade(pct)}`}</span>
                   {source && <span className="text-xs font-bold text-fg-3">{source}</span>}
                 </p>
                 {[c.code, c.instructor].some(Boolean) && <p className="text-sm font-bold text-fg-3">{[c.code, c.instructor].filter(Boolean).join(' · ')}</p>}
@@ -205,15 +209,15 @@ function CourseCard({ c, index, open, onToggle }: { c: Course; index: number; op
                 )}
                 {guide?.needsHelp && (
                   <div className="mt-3 rounded-2xl border-2 border-[#0ea5a4]/40 p-3">
-                    <p className="mb-2 text-xs font-black tracking-[0.12em] text-[#0b8584] uppercase">What to do</p>
+                    <p className="mb-2 text-xs font-black tracking-[0.12em] text-[#0b8584] uppercase">{t('What to do')}</p>
                     <ClassGuideSteps g={guide} />
                   </div>
                 )}
-                {target?.requiredPercent != null && target.requiredPercent > 0 && <p className="mt-2 text-sm font-bold text-fg-2">Goal {c.targetGrade}%: {target.requiredPercent > 100 ? 'out of reach on the remaining work.' : `you need about ${Math.ceil(target.requiredPercent)}% on what’s left.`}</p>}
+                {target?.requiredPercent != null && target.requiredPercent > 0 && <p className="mt-2 text-sm font-bold text-fg-2">{t('Goal {n}%:', { n: c.targetGrade ?? '' })} {target.requiredPercent > 100 ? t('out of reach on the remaining work.') : t('you need about {n}% on what’s left.', { n: Math.ceil(target.requiredPercent) })}</p>}
               </section>
 
-              <section aria-label="Up next">
-                <h3 className="mb-1.5 text-xs font-black tracking-[0.12em] text-fg-3 uppercase">Up next</h3>
+              <section aria-label={t('Up next')}>
+                <h3 className="mb-1.5 text-xs font-black tracking-[0.12em] text-fg-3 uppercase">{t('Up next')}</h3>
                 {upcoming.length ? (
                   <ul className="flex flex-col gap-1 text-sm font-bold">
                     {upcoming.slice(0, 3).map((a) => (
@@ -225,20 +229,20 @@ function CourseCard({ c, index, open, onToggle }: { c: Course; index: number; op
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-sm font-bold text-fg-3">Nothing coming up.</p>
+                  <p className="text-sm font-bold text-fg-3">{t('Nothing coming up.')}</p>
                 )}
               </section>
 
               {latest && (
-                <section aria-label="Latest from your teacher">
-                  <h3 className="mb-1.5 text-xs font-black tracking-[0.12em] text-fg-3 uppercase">Latest from your teacher</h3>
+                <section aria-label={t('Latest from your teacher')}>
+                  <h3 className="mb-1.5 text-xs font-black tracking-[0.12em] text-fg-3 uppercase">{t('Latest from your teacher')}</h3>
                   <div className="rounded-xl border-2 border-line bg-surface-2 px-3 py-2">
                     <p className="flex items-center gap-1.5 text-sm font-black">
                       <Megaphone className="size-4 shrink-0 text-accent-text" aria-hidden />
                       <span className="truncate">{latest.title}</span>
                     </p>
                     {latest.body && <p className="mt-0.5 line-clamp-3 text-sm font-semibold text-fg-2">{latest.body}</p>}
-                    <p className="mt-0.5 text-xs font-bold text-fg-3">{formatDistanceToNowStrict(parseInstant(latest.postedAt) ?? now, { addSuffix: true })}</p>
+                    <p className="mt-0.5 text-xs font-bold text-fg-3">{formatDistanceToNowStrict(parseInstant(latest.postedAt) ?? now, { addSuffix: true, locale: dateLocale() })}</p>
                   </div>
                 </section>
               )}
@@ -246,10 +250,10 @@ function CourseCard({ c, index, open, onToggle }: { c: Course; index: number; op
               <div className="flex flex-wrap items-center gap-2">
                 {canvasUrl && (
                   <a href={canvasUrl} target="_blank" rel="noopener noreferrer" className="btn-3d inline-flex h-10 items-center gap-2 rounded-xl border-2 border-line bg-surface px-4 text-sm font-extrabold [--press:var(--line)]">
-                    Open in Canvas <ExternalLink className="size-4" aria-hidden />
+                    {t('Open in Canvas')} <ExternalLink className="size-4" aria-hidden />
                   </a>
                 )}
-                <Menu items={actions(c)} trigger={(p) => <IconButton icon={MoreHorizontal} label={`Actions for ${c.name}`} {...p} />} />
+                <Menu items={actions(c)} trigger={(p) => <IconButton icon={MoreHorizontal} label={t('Actions for {name}', { name: c.name })} {...p} />} />
               </div>
             </div>
           </motion.div>
@@ -266,6 +270,7 @@ function AllAssignments() {
   const courses = useStore((s) => s.courses)
   const tasks = useStore((s) => s.tasks)
   const [show, setShow] = useState<'todo' | 'all'>('todo')
+  const t = useT()
   const [courseId, setCourseId] = useState<string>('any')
   const { lingering, linger } = useLinger(1100)
   const courseMap = new Map(courses.map((c) => [c.id, c]))
@@ -281,7 +286,7 @@ function AllAssignments() {
     const key = due ? format(due, 'yyyy-MM-dd') : 'none'
     let g = groups.find((x) => x.key === key)
     if (!g) {
-      const label = !due ? 'No due date' : isToday(due) ? 'Today' : isTomorrow(due) ? 'Tomorrow' : isYesterday(due) ? 'Yesterday' : format(due, differenceInCalendarDays(due, now) > 180 || differenceInCalendarDays(now, due) > 180 ? 'EEEE, MMM d, yyyy' : 'EEEE, MMM d')
+      const label = !due ? t('No due date') : isToday(due) ? t('Today') : isTomorrow(due) ? t('Tomorrow') : isYesterday(due) ? t('Yesterday') : fmtDate(due, differenceInCalendarDays(due, now) > 180 || differenceInCalendarDays(now, due) > 180 ? 'EEEE, MMM d, yyyy' : 'EEEE, MMM d')
       g = { key, label, late: !!due && due < now && !isToday(due), items: [] }
       groups.push(g)
     }
@@ -292,9 +297,9 @@ function AllAssignments() {
   return (
     <div className="flex flex-col gap-4" data-testid="all-assignments">
       <div className="flex flex-wrap items-center gap-2">
-        <Segmented label="Show" value={show} onChange={setShow} options={[{ value: 'todo', label: `To do · ${openCount}` }, { value: 'all', label: 'Everything' }]} />
-        <select aria-label="Class" value={courseId} onChange={(e) => setCourseId(e.target.value)} className="h-10 rounded-xl border-2 border-line bg-surface px-3 text-sm font-extrabold">
-          <option value="any">All classes</option>
+        <Segmented label={t('Show')} value={show} onChange={setShow} options={[{ value: 'todo', label: `${t('To do')} · ${openCount}` }, { value: 'all', label: t('Everything') }]} />
+        <select aria-label={t('Class')} value={courseId} onChange={(e) => setCourseId(e.target.value)} className="h-10 rounded-xl border-2 border-line bg-surface px-3 text-sm font-extrabold">
+          <option value="any">{t('All classes')}</option>
           {active.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -304,7 +309,7 @@ function AllAssignments() {
       </div>
       {groups.length === 0 ? (
         <div className="card-3d px-6 py-10 text-center">
-          <p className="text-lg font-black">{show === 'todo' ? 'Nothing left to do 🎉' : 'No assignments yet'}</p>
+          <p className="text-lg font-black">{show === 'todo' ? t('Nothing left to do 🎉') : t('No assignments yet')}</p>
         </div>
       ) : (
         groups.map((g) => (
@@ -322,7 +327,7 @@ function AllAssignments() {
                     <motion.li key={a.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, height: 0 }} className={cn('flex items-center gap-3 px-3 py-2.5 sm:px-4', done && 'bg-success-soft/60')}>
                       <CheckButton
                         checked={done}
-                        label={done ? `Undo ${a.title}` : `Complete ${a.title}`}
+                        label={done ? t('Undo {title}', { title: a.title }) : t('Complete {title}', { title: a.title })}
                         onToggle={(el) => {
                           if (!done) linger(a.id)
                           completeAssignment(a, el)
@@ -332,15 +337,15 @@ function AllAssignments() {
                         <span className={cn('block truncate font-extrabold', done && 'text-fg-3 line-through')}>{a.title}</span>
                         <span className="flex items-center gap-1.5 truncate text-xs font-bold text-fg-3">
                           <CourseDot color={course?.color} className="size-2" />
-                          <span className="truncate">{course?.name ?? 'Class'}</span>
-                          {due && <span className="shrink-0">· {format(due, 'h:mm a')}</span>}
+                          <span className="truncate">{course?.name ?? t('Class')}</span>
+                          {due && <span className="shrink-0">· {fmtDate(due, 'h:mm a')}</span>}
                         </span>
                       </span>
                       <LockTag a={a} now={now} />
-                      {missing ? <Badge tone="danger">Missing</Badge> : late ? <Badge tone="danger">Late</Badge> : null}
+                      {missing ? <Badge tone="danger">{t('Missing')}</Badge> : late ? <Badge tone="danger">{t('Late')}</Badge> : null}
                       {!done && <XpChip amount={xpForAssignmentNow(a, tasks, now)} className="max-sm:hidden" />}
                       {!done && (
-                        <button type="button" onClick={() => skipAssignment(a)} aria-label={`Skip ${a.title}`} title="Skip: remove from CampusFlow" data-sfx="none" className="grid size-8 shrink-0 place-items-center rounded-lg text-fg-3 hover:bg-surface-2 hover:text-fg">
+                        <button type="button" onClick={() => skipAssignment(a)} aria-label={t('Skip {title}', { title: a.title })} title={t('Skip: remove from CampusFlow')} data-sfx="none" className="grid size-8 shrink-0 place-items-center rounded-lg text-fg-3 hover:bg-surface-2 hover:text-fg">
                           <SkipForward className="size-4" strokeWidth={2.5} aria-hidden />
                         </button>
                       )}

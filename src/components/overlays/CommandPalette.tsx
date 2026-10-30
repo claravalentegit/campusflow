@@ -20,6 +20,8 @@ import { useAppData, useCourseMap } from '@/hooks/useData'
 import { useUi } from '@/store/ui'
 import { CourseDot } from '../course'
 import { cn } from '../ui/cn'
+import { useT } from '@/i18n'
+import { msg } from '@/i18n/langs'
 
 interface Command {
   id: string
@@ -30,7 +32,7 @@ interface Command {
   run: () => void
 }
 
-const CATEGORY_LABEL: Record<SearchCategory, string> = { assignment: 'Assignments', course: 'Courses', task: 'Tasks' }
+const CATEGORY_LABEL: Record<SearchCategory, string> = { assignment: msg('Assignments'), course: msg('Courses'), task: msg('Tasks') }
 const CATEGORY_ICON: Record<SearchCategory, LucideIcon> = { assignment: CheckSquare, course: BookOpen, task: ListTodo }
 
 /** Ctrl/⌘+K: search everything and run commands from the keyboard. */
@@ -39,6 +41,7 @@ export function CommandPalette() {
   const setOpen = useUi((s) => s.setPaletteOpen)
   const openQuickAdd = useUi((s) => s.openQuickAdd)
   const setFocusDialogOpen = useUi((s) => s.setFocusDialogOpen)
+  const t = useT()
   const navigate = useNavigate()
   const data = useAppData()
   const courses = useCourseMap()
@@ -60,18 +63,18 @@ export function CommandPalette() {
   const go = (path: string) => () => navigate(path)
   const commands: Command[] = useMemo(
     () => [
-      { id: 'add-assignment', label: 'Add assignment', icon: Plus, hint: 'C', keywords: 'new create homework', run: () => openQuickAdd({ kind: 'assignment' }) },
-      { id: 'add-task', label: 'Add task', icon: ListTodo, keywords: 'new todo', run: () => openQuickAdd({ kind: 'task' }) },
-      { id: 'focus', label: 'Start a focus session', icon: Timer, hint: 'F', keywords: 'pomodoro timer xp', run: () => setFocusDialogOpen(true) },
-      { id: 'nav-today', label: 'Go to Today', icon: LayoutDashboard, keywords: 'home quest', run: go('/') },
-      { id: 'nav-plan', label: 'Open my plan', icon: Route, keywords: 'study plan steps grade help', run: go('/plan') },
-      { id: 'nav-courses', label: 'Go to Courses', icon: BookOpen, keywords: 'classes', run: go('/courses') },
-      { id: 'nav-me', label: 'My level & badges', icon: Trophy, keywords: 'xp profile streak', run: go('/me') },
-      { id: 'nav-grades', label: 'Grades', icon: GraduationCap, keywords: 'courses', run: go('/courses') },
-      { id: 'nav-settings', label: 'Settings & Canvas connection', icon: Settings, run: go('/me#settings') },
+      { id: 'add-assignment', label: t('Add assignment'), icon: Plus, hint: 'C', keywords: 'new create homework', run: () => openQuickAdd({ kind: 'assignment' }) },
+      { id: 'add-task', label: t('Add task'), icon: ListTodo, keywords: 'new todo', run: () => openQuickAdd({ kind: 'task' }) },
+      { id: 'focus', label: t('Start a focus session'), icon: Timer, hint: 'F', keywords: 'pomodoro timer xp', run: () => setFocusDialogOpen(true) },
+      { id: 'nav-today', label: t('Go to Today'), icon: LayoutDashboard, keywords: 'home quest', run: go('/') },
+      { id: 'nav-plan', label: t('Open my plan'), icon: Route, keywords: 'study plan steps grade help', run: go('/plan') },
+      { id: 'nav-courses', label: t('Go to Courses'), icon: BookOpen, keywords: 'classes', run: go('/courses') },
+      { id: 'nav-me', label: t('My level & badges'), icon: Trophy, keywords: 'xp profile streak', run: go('/me') },
+      { id: 'nav-grades', label: t('Grades'), icon: GraduationCap, keywords: 'courses', run: go('/courses') },
+      { id: 'nav-settings', label: t('Settings & Canvas connection'), icon: Settings, run: go('/me#settings') },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
+    [t],
   )
 
   const q = query.trim().toLowerCase()
@@ -114,7 +117,7 @@ export function CommandPalette() {
   return (
     <dialog
       ref={ref}
-      aria-label="Search and commands"
+      aria-label={t('Search and commands')}
       onCancel={(e) => {
         e.preventDefault()
         setOpen(false)
@@ -133,8 +136,8 @@ export function CommandPalette() {
                 setQuery(e.target.value)
                 setActive(0)
               }}
-              placeholder="Search assignments and classes, or type a command"
-              aria-label="Search"
+              placeholder={t('Search assignments and classes, or type a command')}
+              aria-label={t('Search')}
               role="combobox"
               aria-expanded
               aria-controls="palette-list"
@@ -144,10 +147,10 @@ export function CommandPalette() {
             <kbd className="hidden rounded-md border-2 border-line px-1.5 text-xs font-bold text-fg-3 sm:inline">Esc</kbd>
           </div>
           <div id="palette-list" ref={listRef} role="listbox" className="scrollbar-thin max-h-[min(60vh,440px)] overflow-y-auto p-1.5">
-            {q && results.length === 0 && matchedCommands.length === 0 && <p className="px-3 py-8 text-center text-sm text-fg-3">No results for “{query}”.</p>}
+            {q && results.length === 0 && matchedCommands.length === 0 && <p className="px-3 py-8 text-center text-sm text-fg-3">{t('No results for “{query}”.', { query })}</p>}
             {[...grouped.entries()].map(([cat, items]) => (
-              <div key={cat} role="group" aria-label={CATEGORY_LABEL[cat]} className="mb-1">
-                <p className="px-3 pt-2.5 pb-1 text-xs font-black tracking-[0.12em] text-fg-3 uppercase">{CATEGORY_LABEL[cat]}</p>
+              <div key={cat} role="group" aria-label={t(CATEGORY_LABEL[cat])} className="mb-1">
+                <p className="px-3 pt-2.5 pb-1 text-xs font-black tracking-[0.12em] text-fg-3 uppercase">{t(CATEGORY_LABEL[cat])}</p>
                 {items.map((r) => {
                   index++
                   const i = index
@@ -174,8 +177,8 @@ export function CommandPalette() {
               </div>
             ))}
             {matchedCommands.length > 0 && (
-              <div role="group" aria-label="Commands">
-                <p className="px-3 pt-2.5 pb-1 text-xs font-black tracking-[0.12em] text-fg-3 uppercase">{q ? 'Commands' : 'Quick actions'}</p>
+              <div role="group" aria-label={t('Commands')}>
+                <p className="px-3 pt-2.5 pb-1 text-xs font-black tracking-[0.12em] text-fg-3 uppercase">{q ? t('Commands') : t('Quick actions')}</p>
                 {matchedCommands.map((c) => {
                   index++
                   const i = index

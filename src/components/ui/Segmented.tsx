@@ -1,6 +1,7 @@
 import { useId } from 'react'
 import { motion } from 'motion/react'
 import { cn } from './cn'
+import { useT } from '@/i18n'
 
 export interface SegmentedOption<T extends string> {
   value: T
@@ -10,8 +11,9 @@ export interface SegmentedOption<T extends string> {
 /** Chunky single-choice control (radio group semantics) with a sliding highlight. */
 export function Segmented<T extends string>({ value, onChange, options, label, className, size = 'md' }: { value: T; onChange: (v: T) => void; options: SegmentedOption<T>[]; label: string; className?: string; size?: 'sm' | 'md' }) {
   const id = useId()
+  const t = useT()
   return (
-    <div role="radiogroup" aria-label={label} className={cn('inline-flex gap-0.5 rounded-xl bg-surface-2 p-1', className)}>
+    <div role="radiogroup" aria-label={t(label)} className={cn('inline-flex gap-0.5 rounded-xl bg-surface-2 p-1', className)}>
       {options.map((o) => {
         const active = value === o.value
         return (
@@ -34,7 +36,7 @@ export function Segmented<T extends string>({ value, onChange, options, label, c
             className={cn('relative rounded-lg font-extrabold whitespace-nowrap transition-colors', size === 'sm' ? 'px-2.5 py-1 text-xs' : 'px-3.5 py-1.5 text-sm', active ? 'text-accent-text' : 'text-fg-3 hover:text-fg')}
           >
             {active && <motion.span layoutId={`seg-${id}`} className="absolute inset-0 rounded-lg bg-surface shadow-[0_2px_0_var(--line-strong)]" transition={{ type: 'spring', stiffness: 500, damping: 34 }} />}
-            <span className="relative">{o.label}</span>
+            <span className="relative">{t(o.label)}</span>
           </button>
         )
       })}

@@ -28,6 +28,15 @@ describe('family sharing', () => {
     expect((await f.overview(SID)).parents.map((p) => p.name)).toEqual(['Mom'])
   })
 
+  it('tells the student when a parent finished the weekly guide', async () => {
+    const { f } = setup()
+    const { code } = await f.createCode(SID, 'Clara')
+    const { token } = await f.link(code, 'Mom', undefined)
+    await f.guideDone(token, SID)
+    expect((await f.overview(SID)).parents[0].guideDoneAt).toBeTruthy()
+    await expect(f.guideDone('x'.repeat(40), SID)).rejects.toBeInstanceOf(FamilyError)
+  })
+
   it('stores only sealed data', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'cf-kv-'))
     const f = family(memoryKv(join(dir, 'family.json')))

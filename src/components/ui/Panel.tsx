@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from './cn'
+import { useT } from '@/i18n'
 
 export type PanelTone = 'accent' | 'gold' | 'fire' | 'green' | 'blue' | 'pink' | 'slate'
 
@@ -16,6 +17,10 @@ const TONE: Record<PanelTone, string> = {
 
 /** A chunky section card with an optional 3D icon tile. Use one level only, never nest. */
 export function Panel({ title, description, actions, children, className, bodyClassName, id, icon: Icon, tone = 'accent' }: { title?: ReactNode; description?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string; bodyClassName?: string; id?: string; icon?: LucideIcon; tone?: PanelTone }) {
+  const t = useT()
+  const tx = <V,>(v: V): V => (typeof v === 'string' ? (t(v) as V) : v)
+  title = tx(title)
+  description = tx(description)
   return (
     <section id={id} aria-labelledby={id && title ? `${id}-title` : undefined} className={cn('card-3d scroll-mt-24 overflow-hidden', className)}>
       {(title || actions) && (

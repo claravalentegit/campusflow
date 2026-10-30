@@ -20,6 +20,7 @@ import { ShortcutsDialog } from './ShortcutsDialog'
 import { TopBar } from './TopBar'
 import { installClickSounds } from '@/game/fx'
 import { useFamilySync } from '@/integrations/family'
+import { useT } from '@/i18n'
 
 function useApplyTheme() {
   const theme = useStore((s) => s.prefs.theme)
@@ -44,6 +45,11 @@ export function AppShell() {
   const mustSignIn = !onboarded && mode !== 'canvas' && pathname !== '/connect'
   const bare = !onboarded && pathname === '/connect'
   useApplyTheme()
+  const t = useT()
+  const lang = useStore((s) => s.prefs.language)
+  useEffect(() => {
+    document.documentElement.lang = lang
+  }, [lang])
   useCanvasAutoSync()
   useFamilySync()
   const navigate = useNavigate()
@@ -70,7 +76,7 @@ export function AppShell() {
   return (
     <div className="flex min-h-dvh flex-col">
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[70] focus:rounded-md focus:bg-surface focus:px-3 focus:py-2 focus:shadow-lg">
-        Skip to content
+        {t('Skip to content')}
       </a>
       {!bare && <TopBar />}
       <motion.main key={pathname} id="main" tabIndex={-1} className="flex-1 outline-none max-sm:pb-24" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, ease: 'easeOut' }}>
@@ -79,13 +85,13 @@ export function AppShell() {
       <footer hidden={bare} className="pb-6 text-center text-xs font-bold text-fg-3 max-sm:pb-24">
         {mode === 'demo' ? (
           <>
-            Demo data · not connected to Canvas ·{' '}
+            {t('Demo data · not connected to Canvas')} ·{' '}
             <Link to="/connect" className="text-accent-text hover:underline">
-              Connect Canvas
+              {t('Connect Canvas')}
             </Link>
           </>
         ) : (
-          DATA_MODE_LABEL[mode]
+          t(DATA_MODE_LABEL[mode])
         )}
       </footer>
       {!bare && <BottomNav />}

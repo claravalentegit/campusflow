@@ -15,6 +15,7 @@ export interface ParentLink {
   name: string
   linkedAt: string
   lastSeenAt: string | null
+  guideDoneAt?: string | null
 }
 
 export interface FamilySnapshot {

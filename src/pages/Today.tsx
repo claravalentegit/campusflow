@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
-import { differenceInCalendarDays, format, isSameDay } from 'date-fns'
+import { differenceInCalendarDays, isSameDay } from 'date-fns'
 import { ChevronDown, Crown, ListChecks, Plug, Plus, RefreshCw, SkipForward, Trophy } from 'lucide-react'
 import { checklistProgress, isAssignmentDone, isAssignmentOverdue } from '@/domain/assignments'
 import { dueBucket, formatDueDay, greeting, parseInstant, toLocalDay } from '@/domain/dates'
@@ -22,12 +22,14 @@ import { LockTag } from '@/components/LockTag'
 import { Page, usePageTitle } from '@/components/Page'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/components/ui/cn'
+import { fmtDate, tr, useT } from '@/i18n'
 
 type Item = { kind: 'assignment'; a: Assignment } | { kind: 'task'; t: StudyTask }
 const keyOf = (i: Item) => (i.kind === 'assignment' ? `a:${i.a.id}` : `t:${i.t.id}`)
 
 export function Today() {
-  usePageTitle('Today')
+  const t = useT()
+  usePageTitle(t('Today'))
   const now = useNow(30_000)
   const assignments = useStore((s) => s.assignments)
   const tasks = useStore((s) => s.tasks)
@@ -90,9 +92,9 @@ export function Today() {
   const summary =
     openToday === 0
       ? groups.week.length
-        ? `You’re clear for today. ${groups.week.length} coming up this week.`
-        : 'You’re all clear. Nice work.'
-      : `${groups.today.length ? `${groups.today.length} thing${groups.today.length === 1 ? '' : 's'} for today` : 'Nothing due today'}${groups.late.length + rescueOpen ? `, ${groups.late.length + rescueOpen} to catch up on` : ''}.`
+        ? t('You’re clear for today. {n} coming up this week.', { n: groups.week.length })
+        : t('You’re all clear. Nice work.')
+      : `${groups.today.length ? (groups.today.length === 1 ? t('1 thing for today') : t('{n} things for today', { n: groups.today.length })) : t('Nothing due today')}${groups.late.length + rescueOpen ? t(', {n} to catch up on', { n: groups.late.length + rescueOpen }) : ''}.`
 
   const row = (i: Item, opts: { late?: boolean } = {}) => (
     <QuestRow
@@ -112,7 +114,7 @@ export function Today() {
   return (
     <Page className="max-w-4xl">
       <div className="mb-5">
-        <p className="text-sm font-bold text-fg-3">{format(now, 'EEEE, MMMM d')}</p>
+        <p className="text-sm font-bold text-fg-3">{fmtDate(now, 'EEEE, MMMM d')}</p>
         <h1 className="text-3xl font-black tracking-tight">
           {greeting(now)}
           {prefs.displayName ? `, ${prefs.displayName}` : ''}
@@ -130,22 +132,22 @@ export function Today() {
 
       <div className="mt-6 flex flex-col gap-6">
         <GradeGuideCard />
-        <Group id="late" label="Late · catch up for half XP" tone="late" items={groups.late}>
+        <Group id="late" label={t('Late · catch up for half XP')} tone="late" items={groups.late}>
           {groups.late.map((i) => row(i, { late: true }))}
         </Group>
-        <Group id="today" label="Today" items={groups.today}>
+        <Group id="today" label={t('Today')} items={groups.today}>
           {groups.today.map((i) => row(i))}
         </Group>
-        <Group id="week" label="This week" items={groups.week}>
+        <Group id="week" label={t('This week')} items={groups.week}>
           {groups.week.map((i) => row(i))}
         </Group>
         {groups.later.length > 0 && (
-          <Group id="later" label="Later" items={groups.later}>
+          <Group id="later" label={t('Later')} items={groups.later}>
             {(showLater ? groups.later : groups.later.slice(0, 3)).map((i) => row(i))}
             {groups.later.length > 3 && (
               <button type="button" onClick={() => setShowLater((s) => !s)} className="flex items-center gap-1.5 self-start rounded-lg px-2 py-1 text-sm font-extrabold text-fg-3 hover:text-fg">
                 <ChevronDown className={cn('size-4 transition-transform', showLater && 'rotate-180')} aria-hidden />
-                {showLater ? 'Show less' : `Show ${groups.later.length - 3} more`}
+                {showLater ? t('Show less') : t('Show {n} more', { n: groups.later.length - 3 })}
               </button>
             )}
           </Group>
@@ -154,25 +156,25 @@ export function Today() {
         {openToday + groups.week.length + groups.later.length === 0 && (
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="card-3d flex flex-col items-center gap-2 px-6 py-10 text-center">
             <Trophy className="bob size-12 text-gold" aria-hidden />
-            <p className="text-lg font-black">Nothing left on your list</p>
-            <p className="text-sm font-semibold text-fg-3">Add new assignments as they’re announced to keep earning XP.</p>
+            <p className="text-lg font-black">{t('Nothing left on your list')}</p>
+            <p className="text-sm font-semibold text-fg-3">{t('Add new assignments as they’re announced to keep earning XP.')}</p>
           </motion.div>
         )}
 
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" icon={ListChecks} onClick={() => navigate('/courses?view=all')}>
-            See all assignments
+            {t('See all assignments')}
           </Button>
           <Button variant="secondary" icon={Plus} onClick={() => openQuickAdd({ kind: 'assignment' })}>
-            Add assignment or task
+            {t('Add assignment or task')}
           </Button>
         </div>
 
         {groups.doneToday.length > 0 && (
-          <section aria-label="Done today">
+          <section aria-label={t('Done today')}>
             <button type="button" aria-expanded={showDone} onClick={() => setShowDone((s) => !s)} className="flex items-center gap-2 text-sm font-black text-success">
               <Trophy className="size-4" aria-hidden />
-              {groups.doneToday.length} done today
+              {t('{n} done today', { n: groups.doneToday.length })}
               <ChevronDown className={cn('size-4 transition-transform', showDone && 'rotate-180')} aria-hidden />
             </button>
             <AnimatePresence initial={false}>
@@ -213,8 +215,9 @@ function QuestRow({ item, now, course, parent, tasks, late, open, onDone, onOpen
   const dueAt = isA ? item.a.dueAt : (item.t.dueAt ?? null)
   const overdue = isA ? isAssignmentOverdue(item.a, now) : !!dueAt && !done && new Date(dueAt) < now
   const bucket = dueBucket(dueAt, now)
-  const when = isA ? (overdue ? lateLabel(dueAt!, now) : bucket === 'today' ? format(new Date(dueAt!), 'h:mm a') : dueAt ? formatDueDay(dueAt, now) : 'No date') : item.t.plannedFor && item.t.plannedFor < toLocalDay(now) ? 'From earlier' : item.t.estimatedMinutes ? `${item.t.estimatedMinutes} min` : ''
+  const when = isA ? (overdue ? lateLabel(dueAt!, now) : bucket === 'today' ? fmtDate(new Date(dueAt!), 'h:mm a') : dueAt ? formatDueDay(dueAt, now) : tr('No date')) : item.t.plannedFor && item.t.plannedFor < toLocalDay(now) ? tr('From earlier') : item.t.estimatedMinutes ? `${item.t.estimatedMinutes} min` : ''
   const key = isA ? `a:${item.a.id}` : `t:${item.t.id}`
+  const t = useT()
 
   return (
     <motion.li
@@ -235,7 +238,7 @@ function QuestRow({ item, now, course, parent, tasks, late, open, onDone, onOpen
       <div className="relative flex items-center gap-3.5 px-4 py-3 sm:gap-4 sm:px-5">
         <CheckButton
           checked={done}
-          label={done ? `Undo ${title}` : `Complete ${title}`}
+          label={done ? t('Undo {title}', { title }) : t('Complete {title}', { title })}
           onToggle={(el) => {
             if (!done) onDone(key)
             if (isA) completeAssignment(item.a, el)
@@ -247,20 +250,20 @@ function QuestRow({ item, now, course, parent, tasks, late, open, onDone, onOpen
           <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-sm font-bold text-fg-2">
             {course && <CourseDot color={course.color} className="size-2.5" />}
             <span className="truncate">
-              {course?.name ?? 'Personal'}
-              {boss && progress && progress.total > 0 && ` · Boss, ${progress.done} of ${progress.total} stages`}
-              {boss && (!progress || progress.total === 0) && ' · Boss level'}
-              {!isA && parent && ` · step of ${parent.title}`}
+              {course?.name ?? t('Personal')}
+              {boss && progress && progress.total > 0 && ` · ${t('Boss, {done} of {total} stages', { done: progress.done, total: progress.total })}`}
+              {boss && (!progress || progress.total === 0) && ` · ${t('Boss level')}`}
+              {!isA && parent && ` · ${t('step of {title}', { title: parent.title })}`}
             </span>
             <span className={cn('shrink-0 sm:hidden', overdue && !done ? 'text-danger' : 'text-fg-3')}>· {when}</span>
           </span>
         </button>
         {isA && <LockTag a={item.a} now={now} className="relative" />}
-        {boss && !done && <Crown className="relative hidden size-5 shrink-0 fill-accent/20 text-accent sm:block" aria-label="Boss level" />}
+        {boss && !done && <Crown className="relative hidden size-5 shrink-0 fill-accent/20 text-accent sm:block" aria-label={t('Boss level')} />}
         <XpChip amount={xp} tone={boss ? 'purple' : done ? 'muted' : 'gold'} className="relative max-sm:hidden" />
-        <span className={cn('relative hidden w-28 shrink-0 text-right text-sm font-extrabold sm:block', overdue && !done ? 'text-danger' : 'text-fg-2')}>{done ? 'Done!' : when}</span>
+        <span className={cn('relative hidden w-28 shrink-0 text-right text-sm font-extrabold sm:block', overdue && !done ? 'text-danger' : 'text-fg-2')}>{done ? t('Done!') : when}</span>
         {isA && !done && (
-          <button type="button" onClick={() => skipAssignment(item.a)} aria-label={`Skip ${title}`} title="Skip: remove from CampusFlow" data-sfx="none" className="relative z-[1] grid size-9 shrink-0 place-items-center rounded-xl text-fg-3 transition-colors hover:bg-surface-2 hover:text-fg">
+          <button type="button" onClick={() => skipAssignment(item.a)} aria-label={t('Skip {title}', { title })} title={t('Skip: remove from CampusFlow')} data-sfx="none" className="relative z-[1] grid size-9 shrink-0 place-items-center rounded-xl text-fg-3 transition-colors hover:bg-surface-2 hover:text-fg">
             <SkipForward className="size-[18px]" strokeWidth={2.5} aria-hidden />
           </button>
         )}
@@ -281,10 +284,11 @@ function CanvasLine() {
   const prefs = useStore((s) => s.prefs)
   const { syncing, needsReconnect } = useCanvasSync()
   const now = useNow(30_000)
+  const t = useT()
   if (prefs.dataMode === 'demo')
     return (
       <Link to="/connect" className="mt-2 inline-flex items-center gap-1.5 rounded-full border-2 border-line bg-surface px-3 py-1 text-xs font-black text-accent-text transition-transform hover:-translate-y-0.5">
-        <Plug className="size-3.5" aria-hidden /> Demo data · Connect Canvas to load your real classes
+        <Plug className="size-3.5" aria-hidden /> {t('Demo data · Connect Canvas to load your real classes')}
       </Link>
     )
   if (prefs.dataMode !== 'canvas') return null
@@ -293,15 +297,15 @@ function CanvasLine() {
     <p className="mt-2 flex flex-wrap items-center gap-2 text-xs font-bold text-fg-3">
       {needsReconnect ? (
         <Link to="/connect" className="font-black text-danger hover:underline">
-          Canvas sign-in expired · Reconnect
+          {t('Canvas sign-in expired · Reconnect')}
         </Link>
       ) : (
         <span>
-          Synced with Canvas{mins == null ? '' : mins < 1 ? ' just now' : ` ${mins < 60 ? `${mins} min` : `${Math.round(mins / 60)} h`} ago`}
+          {mins == null ? t('Synced with Canvas') : mins < 1 ? t('Synced with Canvas just now') : t('Synced with Canvas {time} ago', { time: mins < 60 ? `${mins} min` : `${Math.round(mins / 60)} h` })}
         </span>
       )}
-      <button id="canvas-sync-button" type="button" onClick={() => void syncCanvas()} disabled={syncing} className="inline-flex items-center gap-1 rounded-full border-2 border-line bg-surface px-2.5 py-0.5 font-black text-fg-2 hover:text-fg disabled:opacity-60" aria-label="Sync with Canvas now">
-        <RefreshCw className={cn('size-3.5', syncing && 'animate-spin')} aria-hidden /> {syncing ? 'Syncing…' : 'Sync'}
+      <button id="canvas-sync-button" type="button" onClick={() => void syncCanvas()} disabled={syncing} className="inline-flex items-center gap-1 rounded-full border-2 border-line bg-surface px-2.5 py-0.5 font-black text-fg-2 hover:text-fg disabled:opacity-60" aria-label={t('Sync with Canvas now')}>
+        <RefreshCw className={cn('size-3.5', syncing && 'animate-spin')} aria-hidden /> {syncing ? t('Syncing…') : t('Sync')}
       </button>
     </p>
   )
@@ -309,29 +313,30 @@ function CanvasLine() {
 
 export function lateLabel(dueAt: string, now: Date): string {
   const days = differenceInCalendarDays(now, new Date(dueAt))
-  return days <= 0 ? 'Due earlier today' : days === 1 ? 'Due yesterday' : `${days} days late`
+  return days <= 0 ? tr('Due earlier today') : days === 1 ? tr('Due yesterday') : tr('{n} days late', { n: days })
 }
 
 function FirstRun() {
   const resetDemo = useStore((s) => s.resetDemoData)
   const navigate = useNavigate()
+  const t = useT()
   return (
     <Page className="max-w-lg">
       <div className="card-3d mt-10 flex flex-col items-center gap-3 px-6 py-10 text-center">
         <motion.div initial={{ scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 260, damping: 12 }}>
           <LevelBadge level={1} size="lg" />
         </motion.div>
-        <h1 className="text-2xl font-black">Level 1. Let’s go!</h1>
-        <p className="font-semibold text-fg-2">Connect Canvas to bring in all your classes and assignments, then every one you finish earns XP.</p>
+        <h1 className="text-2xl font-black">{t('Level 1. Let’s go!')}</h1>
+        <p className="font-semibold text-fg-2">{t('Connect Canvas to bring in all your classes and assignments, then every one you finish earns XP.')}</p>
         <div className="mt-2 flex flex-wrap justify-center gap-2">
           <Button variant="primary" size="lg" icon={Plug} onClick={() => navigate('/connect')}>
-            Connect Canvas
+            {t('Connect Canvas')}
           </Button>
           <Button variant="secondary" icon={Plus} onClick={() => navigate('/courses?new=1')}>
-            Add classes yourself
+            {t('Add classes yourself')}
           </Button>
           <Button variant="ghost" onClick={resetDemo}>
-            Try the demo
+            {t('Try the demo')}
           </Button>
         </div>
       </div>

@@ -4,6 +4,7 @@ import { useStore } from '@/store/appStore'
 import { toast } from '@/store/ui'
 import { celebrateCompletion, sfx } from '@/game/fx'
 import { canvasApi, CanvasError } from './adapter'
+import { tr } from '@/i18n/core'
 
 interface SyncState {
   syncing: boolean
@@ -45,15 +46,15 @@ export async function syncCanvas(opts: { silent?: boolean; account?: { userName:
       toast(`+${xp} XP for ${events.length} thing${events.length === 1 ? '' : 's'} you submitted on Canvas`, 'success')
     } else if (!opts.silent) {
       sfx.tap()
-      toast('Synced with Canvas', 'success')
+      toast(tr('Synced with Canvas'), 'success')
     }
     return { courses, assignments, xp, submissions: events.length }
   } catch (e) {
     const err = e as CanvasError
     const needsReconnect = err.status === 401
     useCanvasSync.setState({ syncing: false, error: err.message, needsReconnect })
-    if (needsReconnect) toast('Your Canvas sign-in expired. Reconnect to keep syncing.', 'error', { label: 'Reconnect', run: () => navigate('/connect') })
-    else if (!opts.silent) toast(err.message || 'Canvas sync failed.', 'error')
+    if (needsReconnect) toast(tr('Your Canvas sign-in expired. Reconnect to keep syncing.'), 'error', { label: tr('Reconnect'), run: () => navigate('/connect') })
+    else if (!opts.silent) toast(err.message || tr('Canvas sync failed.'), 'error')
     return null
   }
 }

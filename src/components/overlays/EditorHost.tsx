@@ -10,8 +10,10 @@ import { TaskForm } from '../forms/TaskForm'
 import { Button } from '../ui/Button'
 import { confirm, Dialog } from '../ui/Dialog'
 import { useDeleteAssignment } from '../work'
+import { tr } from '@/i18n/core'
+import { msg } from '@/i18n/langs'
 
-const TITLES = { assignment: 'Edit assignment', course: 'Edit course', task: 'Edit task', session: 'Edit study session', event: 'Edit event', reminder: 'Edit reminder' }
+const TITLES = { assignment: msg('Edit assignment'), course: msg('Edit course'), task: msg('Edit task'), session: msg('Edit study session'), event: msg('Edit event'), reminder: msg('Edit reminder') }
 
 /** Renders the edit dialog for whatever record `useUi().editing` points at. */
 export function EditorHost() {
@@ -41,9 +43,9 @@ export function EditorHost() {
       if (t) {
         body = <TaskForm formId={formId} initial={t} onDone={close} />
         onDelete = async () => {
-          if (await confirm({ title: 'Delete task?', message: `“${t.title}” will be removed.` })) {
+          if (await confirm({ title: tr('Delete task?'), message: tr('“{title}” will be removed.', { title: t.title }) })) {
             s.deleteTask(t.id)
-            toast('Task deleted')
+            toast(tr('Task deleted'))
             close()
           }
         }
@@ -53,9 +55,9 @@ export function EditorHost() {
       if (x) {
         body = <SessionForm formId={formId} initial={x} onDone={close} />
         onDelete = async () => {
-          if (await confirm({ title: 'Delete study session?', message: `“${x.title}” will be removed from your calendar.` })) {
+          if (await confirm({ title: tr('Delete study session?'), message: tr('“{title}” will be removed from your calendar.', { title: x.title }) })) {
             s.deleteSession(x.id)
-            toast('Study session deleted')
+            toast(tr('Study session deleted'))
             close()
           }
         }
@@ -65,9 +67,9 @@ export function EditorHost() {
       if (e) {
         body = <EventForm formId={formId} initial={e} onDone={close} />
         onDelete = async () => {
-          if (await confirm({ title: 'Delete event?', message: `“${e.title}” will be removed.${e.source === 'canvas' ? ' It may return on the next Canvas sync.' : ''}` })) {
+          if (await confirm({ title: tr('Delete event?'), message: `${tr('“{title}” will be removed.', { title: e.title })}${e.source === 'canvas' ? ` ${tr('It may return on the next Canvas sync.')}` : ''}` })) {
             s.deleteEvent(e.id)
-            toast('Event deleted')
+            toast(tr('Event deleted'))
             close()
           }
         }
@@ -77,9 +79,9 @@ export function EditorHost() {
       if (r) {
         body = <ReminderForm formId={formId} initial={r} onDone={close} />
         onDelete = async () => {
-          if (await confirm({ title: 'Delete reminder?', message: `“${r.title}” will be removed.` })) {
+          if (await confirm({ title: tr('Delete reminder?'), message: tr('“{title}” will be removed.', { title: r.title }) })) {
             s.deleteReminder(r.id)
-            toast('Reminder deleted')
+            toast(tr('Reminder deleted'))
             close()
           }
         }
@@ -96,12 +98,12 @@ export function EditorHost() {
         <>
           {onDelete && (
             <Button variant="ghost" icon={Trash2} className="mr-auto text-danger hover:text-danger" onClick={() => void onDelete?.()}>
-              Delete
+              {tr('Delete')}
             </Button>
           )}
-          <Button onClick={close}>Cancel</Button>
+          <Button onClick={close}>{tr('Cancel')}</Button>
           <Button variant="primary" type="submit" form={formId}>
-            Save changes
+            {tr('Save changes')}
           </Button>
         </>
       }

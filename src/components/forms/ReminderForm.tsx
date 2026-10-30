@@ -5,8 +5,11 @@ import { useStore } from '@/store/appStore'
 import { toast } from '@/store/ui'
 import { Field, Input } from '../ui/Field'
 import { CourseSelect, trimOrError } from './shared'
+import { useT } from '@/i18n'
+import { msg } from '@/i18n/langs'
 
 export function ReminderForm({ formId, initial, preset, onDone }: { formId: string; initial?: Reminder; preset?: { courseId?: string | null; assignmentId?: string | null; day?: string; time?: string }; onDone: (r: Reminder) => void }) {
+  const tt = useT()
   const add = useStore((s) => s.addReminder)
   const update = useStore((s) => s.updateReminder)
   const at = splitLocalDateTime(initial?.remindAt ?? null)
@@ -19,20 +22,20 @@ export function ReminderForm({ formId, initial, preset, onDone }: { formId: stri
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
     const errs: Record<string, string> = {}
-    const t = trimOrError(title, 'Reminder')
+    const t = trimOrError(title, msg('Reminder'))
     if (t) errs.title = t
     const remindAt = day ? combineLocalDateTime(day, time) : null
-    if (!remindAt) errs.day = 'Choose a date.'
+    if (!remindAt) errs.day = tt('Choose a date.')
     setErrors(errs)
     if (Object.keys(errs).length) return document.getElementById(`${formId}-${Object.keys(errs)[0]}`)?.focus()
     const fields = { title: title.trim(), courseId, remindAt: remindAt as string }
     if (initial) {
       update(initial.id, fields)
-      toast('Reminder updated')
+      toast(tt('Reminder updated'))
       onDone({ ...initial, ...fields })
     } else {
       const created = add({ ...fields, assignmentId: preset?.assignmentId ?? null, done: false, createdAt: new Date().toISOString() })
-      toast('Reminder set')
+      toast(tt('Reminder set'))
       onDone(created)
     }
   }
@@ -51,7 +54,7 @@ export function ReminderForm({ formId, initial, preset, onDone }: { formId: stri
       <Field label="Course" optional>
         {(p) => <CourseSelect {...p} value={courseId} onChange={setCourseId} allowNone />}
       </Field>
-      <p className="text-xs text-fg-3">Reminders appear in your notifications and calendar while CampusFlow is open. Browser push notifications are not enabled.</p>
+      <p className="text-xs text-fg-3">{tt('Reminders appear in your notifications and calendar while CampusFlow is open. Browser push notifications are not enabled.')}</p>
     </form>
   )
 }

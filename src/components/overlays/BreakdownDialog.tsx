@@ -13,6 +13,7 @@ import { Button, IconButton } from '../ui/Button'
 import { Dialog } from '../ui/Dialog'
 import { Field, Input } from '../ui/Field'
 import { EstimateSelect } from '../forms/shared'
+import { tr } from '@/i18n/core'
 
 interface Row extends SuggestedStep {
   key: number
@@ -40,7 +41,7 @@ export function BreakdownDialog() {
     if (!assignment) return
     const res = await ruleBasedAssistant.breakDown(assignment, new Date(), minutes)
     setRows(res.steps.map((s, i) => ({ ...s, key: i })))
-    setMissing(res.missingInfo.filter((m) => !(minutes && m.startsWith('No time estimate'))))
+    setMissing(res.missingInfo.filter((m) => !(minutes && m === tr('No time estimate — add one to size each step.'))))
   }
 
   useEffect(() => {
@@ -60,7 +61,7 @@ export function BreakdownDialog() {
   const save = () => {
     const clean = rows.filter((r) => r.title.trim())
     if (!clean.length) {
-      setError('Add at least one step.')
+      setError(tr('Add at least one step.'))
       return
     }
     const start = Math.max(0, ...existing.map((t) => t.position + 1))
@@ -81,7 +82,7 @@ export function BreakdownDialog() {
       })),
     )
     if (total && total !== assignment.estimatedMinutes) updateAssignment(assignment.id, { estimatedMinutes: total })
-    toast(`Added ${clean.length} steps to “${assignment.title}”`)
+    toast(tr('Added {n} steps to “{title}”', { n: clean.length, title: assignment.title }))
     close()
   }
 
@@ -92,7 +93,7 @@ export function BreakdownDialog() {
       open
       onClose={close}
       size="lg"
-      title="Break into steps"
+      title={tr('Break into steps')}
       description={
         <span className="inline-flex flex-wrap items-center gap-x-2">
           <span className="font-medium text-fg-2">{assignment.title}</span>
@@ -103,11 +104,11 @@ export function BreakdownDialog() {
       footer={
         <>
           <span className="tabular mr-auto text-xs text-fg-3">
-            {rows.length} steps · {formatMinutes(sum)} planned
+            {tr('{n} steps · {time} planned', { n: rows.length, time: formatMinutes(sum) })}
           </span>
-          <Button onClick={close}>Cancel</Button>
+          <Button onClick={close}>{tr('Cancel')}</Button>
           <Button variant="primary" onClick={save}>
-            Save steps
+            {tr('Save steps')}
           </Button>
         </>
       }
@@ -116,10 +117,10 @@ export function BreakdownDialog() {
         <div className="flex items-start gap-2 rounded-md border border-line bg-surface-2/60 px-3 py-2.5 text-xs text-fg-2">
           <Sparkles className="mt-0.5 size-3.5 shrink-0 text-accent" aria-hidden />
           <p>
-            Suggested from a standard <strong className="font-medium">{TYPE_LABEL[assignment.type].toLowerCase()}</strong> template and spread across the days before the deadline. This is a rule-based starting point, not AI — rename, re-time, reschedule or remove anything before saving.
+            {tr('Suggested from a standard template ({type}) and spread across the days before the deadline. This is a rule-based starting point, not AI — rename, re-time, reschedule or remove anything before saving.', { type: tr(TYPE_LABEL[assignment.type]).toLowerCase() })}
           </p>
         </div>
-        {existing.length > 0 && <p className="text-xs text-fg-3">This assignment already has {existing.length} step{existing.length === 1 ? '' : 's'}. New steps are added after them.</p>}
+        {existing.length > 0 && <p className="text-xs text-fg-3">{tr('This assignment already has {n} steps. New steps are added after them.', { n: existing.length })}</p>}
         <div className="flex flex-wrap items-end gap-3">
           <Field label="Total time you expect it to take" className="w-56">
             {(p) => (
@@ -134,14 +135,14 @@ export function BreakdownDialog() {
             )}
           </Field>
           <Button size="sm" variant="ghost" onClick={() => void regenerate(total)}>
-            Reset suggestions
+            {tr('Reset suggestions')}
           </Button>
         </div>
         {missing.length > 0 && (
           <div className="rounded-md border border-line px-3 py-2.5">
             <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-fg-2">
               <AlertCircle className="size-3.5 text-warn" aria-hidden />
-              Missing information
+              {tr('Missing information')}
             </p>
             <ul className="list-disc pl-5 text-xs text-fg-3">
               {missing.map((m) => (
@@ -155,19 +156,19 @@ export function BreakdownDialog() {
             <li key={r.key} className="flex flex-wrap items-center gap-2 px-2 py-2 sm:flex-nowrap">
               <GripVertical className="hidden size-4 shrink-0 text-fg-3/50 sm:block" aria-hidden />
               <span className="tabular w-5 shrink-0 text-center text-xs text-fg-3">{i + 1}</span>
-              <Input aria-label={`Step ${i + 1} title`} value={r.title} onChange={(e) => setRow(r.key, { title: e.target.value })} className="min-w-0 flex-1 basis-full sm:basis-auto" />
+              <Input aria-label={tr('Step {n} title', { n: i + 1 })} value={r.title} onChange={(e) => setRow(r.key, { title: e.target.value })} className="min-w-0 flex-1 basis-full sm:basis-auto" />
               <div className="w-28 shrink-0">
                 <EstimateSelect value={r.estimatedMinutes} onChange={(v) => setRow(r.key, { estimatedMinutes: v })} />
               </div>
-              <Input type="date" aria-label={`Step ${i + 1} planned day`} value={r.plannedFor ?? ''} onChange={(e) => setRow(r.key, { plannedFor: e.target.value || null })} className="w-38 shrink-0" />
-              <IconButton icon={X} label={`Remove step ${i + 1}`} size="sm" onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))} />
+              <Input type="date" aria-label={tr('Step {n} planned day', { n: i + 1 })} value={r.plannedFor ?? ''} onChange={(e) => setRow(r.key, { plannedFor: e.target.value || null })} className="w-38 shrink-0" />
+              <IconButton icon={X} label={tr('Remove step {n}', { n: i + 1 })} size="sm" onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))} />
             </li>
           ))}
         </ol>
-        {lateRows.length > 0 && <p className="text-xs text-warn">{lateRows.length} step(s) are planned after the due date.</p>}
+        {lateRows.length > 0 && <p className="text-xs text-warn">{tr('{n} step(s) are planned after the due date.', { n: lateRows.length })}</p>}
         {error && <p className="text-xs text-danger" role="alert">{error}</p>}
         <Button size="sm" variant="ghost" icon={Plus} className="self-start" onClick={() => setRows((rs) => [...rs, { key: Date.now(), title: '', estimatedMinutes: null, plannedFor: null }])}>
-          Add step
+          {tr('Add step')}
         </Button>
       </div>
     </Dialog>

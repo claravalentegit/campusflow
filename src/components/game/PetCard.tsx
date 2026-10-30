@@ -11,6 +11,7 @@ import { Pet, PetArt } from '@/components/game/Pet'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Field'
 import { cn } from '@/components/ui/cn'
+import { useT } from '@/i18n'
 
 /** Today's top card: the pet, its mood, the daily quest as hearts, and level progress. */
 export function PetCard() {
@@ -23,6 +24,7 @@ export function PetCard() {
   const { days } = useStreak(now)
   const filled = Math.min(completionsOn(events, now), goal)
   const prevFilled = useRef(filled)
+  const t = useT()
   useEffect(() => {
     // A heart fills up a moment after the XP lands.
     if (filled > prevFilled.current) setTimeout(sfx.heart, 650)
@@ -32,20 +34,20 @@ export function PetCard() {
 
   const { mood, late } = petMood(assignments, events, now)
   const stage = petStage(level)
-  const line = stage.stage === 'egg' ? { title: `${pet.name} is about to hatch!`, text: 'Reach Level 2 and your egg hatches.' } : petLine(mood, pet.name, late)
+  const line = stage.stage === 'egg' ? { title: t('{name} is about to hatch!', { name: pet.name }), text: t('Reach Level 2 and your egg hatches.') } : petLine(mood, pet.name, late)
   const done = completionsOn(events, now)
   const complete = done >= goal
 
   return (
-    <section aria-label="Your pet" className={cn('card-3d relative flex items-center gap-4 overflow-hidden p-4 sm:gap-5 sm:p-5', mood === 'worried' ? 'bg-gradient-to-b from-danger-soft/50 to-surface' : 'bg-gradient-to-b from-accent-soft/60 to-surface')}>
-      <Pet species={pet.species} mood={mood} stage={stage.stage} size={100} label={`${pet.name}, your pet. Tap to say hi.`} />
+    <section aria-label={t('Your pet')} className={cn('card-3d relative flex items-center gap-4 overflow-hidden p-4 sm:gap-5 sm:p-5', mood === 'worried' ? 'bg-gradient-to-b from-danger-soft/50 to-surface' : 'bg-gradient-to-b from-accent-soft/60 to-surface')}>
+      <Pet species={pet.species} mood={mood} stage={stage.stage} size={100} label={t('{name}, your pet. Tap to say hi.', { name: pet.name })} />
       <div className="min-w-0 flex-1">
         <p className="text-lg leading-tight font-black sm:text-xl" data-testid="pet-mood">
           {line.title}
         </p>
         <p className="mt-0.5 text-sm font-bold text-fg-2">{line.text}</p>
         <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span className="flex gap-0.5" role="img" aria-label={`Today’s quest: ${Math.min(done, goal)} of ${goal} done`}>
+          <span className="flex gap-0.5" role="img" aria-label={t('Today’s quest: {n} of {goal} done', { n: Math.min(done, goal), goal })}>
             {Array.from({ length: goal }, (_, i) => (
               <motion.span key={i} initial={false} animate={i < done ? { scale: [1, 1.4, 1] } : { scale: 1 }} transition={{ duration: 0.4 }}>
                 <Heart className={cn('size-5', i < done ? 'fill-[#ff5a7a] text-[#ff5a7a]' : 'text-line-strong')} strokeWidth={2.5} aria-hidden />
@@ -53,12 +55,12 @@ export function PetCard() {
             ))}
           </span>
           <span className={cn('text-xs font-black', complete ? 'text-success' : 'text-fg-3')}>
-            {complete ? 'Quest complete! Today is a gold day.' : `Finish ${goal} today to ${days ? `keep your ${days}-day streak` : 'start a streak'}`}
+            {complete ? t('Quest complete! Today is a gold day.') : days ? t('Finish {goal} today to keep your {days}-day streak', { goal, days }) : t('Finish {goal} today to start a streak', { goal })}
           </span>
         </div>
         <div className="mt-2 flex items-center gap-2">
-          <span className="shrink-0 text-xs font-black text-accent-text">Lv {level}</span>
-          <ProgressBar value={progress} height="h-2.5" className="flex-1" label="Progress to next level" />
+          <span className="shrink-0 text-xs font-black text-accent-text">{t('Lv {n}', { n: level })}</span>
+          <ProgressBar value={progress} height="h-2.5" className="flex-1" label={t('Progress to next level')} />
           {days > 0 && (
             <span className="flex shrink-0 items-center gap-0.5 text-xs font-black text-fire">
               <Flame className="size-3.5 fill-current" aria-hidden />
@@ -66,7 +68,7 @@ export function PetCard() {
             </span>
           )}
         </div>
-        {stage.next && stage.stage !== 'egg' && <p className="mt-1 text-[11px] font-bold text-fg-3">Grows into a {stage.next.label} at Level {stage.next.at}</p>}
+        {stage.next && stage.stage !== 'egg' && <p className="mt-1 text-[11px] font-bold text-fg-3">{t('Grows into: {stage} at Level {n}', { stage: t(stage.next.label), n: stage.next.at })}</p>}
       </div>
     </section>
   )
@@ -81,6 +83,7 @@ export function PetPicker({ onDone, compact }: { onDone?: () => void; compact?: 
   const [name, setName] = useState(current?.name ?? '')
   const def = PET_SPECIES.find((p) => p.id === species)!
   const stage = petStage(level).stage
+  const t = useT()
 
   const choose = () => {
     update({ pet: { species, name: name.trim() || def.name } })
@@ -91,14 +94,14 @@ export function PetPicker({ onDone, compact }: { onDone?: () => void; compact?: 
   }
 
   return (
-    <section aria-label="Pick your pet" className={cn('card-3d p-4 sm:p-5', !compact && 'bg-gradient-to-b from-accent-soft/60 to-surface')}>
+    <section aria-label={t('Pick your pet')} className={cn('card-3d p-4 sm:p-5', !compact && 'bg-gradient-to-b from-accent-soft/60 to-surface')}>
       {!compact && (
         <>
-          <p className="text-xl font-black">Pick your study pet!</p>
-          <p className="text-sm font-bold text-fg-2">It grows as you level up, and cheers when you finish things.</p>
+          <p className="text-xl font-black">{t('Pick your study pet!')}</p>
+          <p className="text-sm font-bold text-fg-2">{t('It grows as you level up, and cheers when you finish things.')}</p>
         </>
       )}
-      <div role="radiogroup" aria-label="Pet" className="mt-3 grid grid-cols-5 gap-2">
+      <div role="radiogroup" aria-label={t('Pet')} className="mt-3 grid grid-cols-5 gap-2">
         {PET_SPECIES.map((p) => {
           const active = p.id === species
           return (
@@ -107,7 +110,7 @@ export function PetPicker({ onDone, compact }: { onDone?: () => void; compact?: 
               type="button"
               role="radio"
               aria-checked={active}
-              aria-label={p.kind}
+              aria-label={t(p.kind)}
               whileHover={{ y: -3 }}
               whileTap={{ scale: 0.92 }}
               data-sfx="pet"
@@ -120,7 +123,7 @@ export function PetPicker({ onDone, compact }: { onDone?: () => void; compact?: 
               <motion.span animate={active ? { y: [0, -8, 0] } : { y: 0 }} transition={{ duration: 0.4 }}>
                 <PetArt species={p.id} stage={stage === 'egg' ? 'adult' : stage} size={60} className="max-sm:size-12" />
               </motion.span>
-              <span className="text-[11px] leading-tight font-black max-sm:text-[10px]">{p.kind}</span>
+              <span className="text-[11px] leading-tight font-black max-sm:text-[10px]">{t(p.kind)}</span>
               {active && (
                 <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-2 -right-2 grid size-5 place-items-center rounded-full bg-accent text-white">
                   <Check className="size-3" strokeWidth={4} aria-hidden />
@@ -132,11 +135,11 @@ export function PetPicker({ onDone, compact }: { onDone?: () => void; compact?: 
       </div>
       <div className="mt-3 flex flex-wrap items-end gap-2">
         <label className="min-w-40 flex-1">
-          <span className="text-xs font-black text-fg-3">Name</span>
+          <span className="text-xs font-black text-fg-3">{t('Name')}</span>
           <Input value={name} maxLength={20} placeholder={def.name} onChange={(e) => setName(e.target.value)} className="mt-1" />
         </label>
         <Button variant="primary" onClick={choose}>
-          {current ? 'Save pet' : `Choose ${name.trim() || def.name}`}
+          {current ? t('Save pet') : t('Choose {name}', { name: name.trim() || def.name })}
         </Button>
       </div>
     </section>

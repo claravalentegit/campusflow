@@ -4,6 +4,7 @@ import { X } from 'lucide-react'
 import { create } from 'zustand'
 import { Button, IconButton } from './Button'
 import { cn } from './cn'
+import { useT } from '@/i18n'
 
 export interface DialogProps {
   open: boolean
@@ -21,6 +22,7 @@ export interface DialogProps {
 export function Dialog({ open, onClose, title, description, children, footer, size = 'md', initialFocusSelector }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null)
   const onCloseRef = useRef(onClose)
+  const t = useT()
   onCloseRef.current = onClose
 
   useEffect(() => {
@@ -63,9 +65,9 @@ export function Dialog({ open, onClose, title, description, children, footer, si
           <header className="flex items-start gap-3 px-6 pt-5 pb-3">
             <div className="min-w-0 flex-1">
               <h2 id="dialog-title" className="text-xl font-black">
-                {title}
+                {typeof title === 'string' ? t(title) : title}
               </h2>
-              {description && <p className="mt-0.5 text-sm font-semibold text-fg-3">{description}</p>}
+              {description && <p className="mt-0.5 text-sm font-semibold text-fg-3">{typeof description === 'string' ? t(description) : description}</p>}
             </div>
             <IconButton icon={X} label="Close" size="sm" onClick={onClose} tooltip={false} className="-mr-1.5" />
           </header>
@@ -81,6 +83,7 @@ interface ConfirmRequest {
   title: string
   message: ReactNode
   confirmLabel?: string
+  cancelLabel?: string
   tone?: 'danger' | 'primary'
   resolve: (ok: boolean) => void
 }
@@ -98,6 +101,7 @@ export function confirm(opts: Omit<ConfirmRequest, 'resolve'>): Promise<boolean>
 export function ConfirmHost() {
   const request = useConfirmStore((s) => s.request)
   const setRequest = useConfirmStore((s) => s.set)
+  const t = useT()
   const finish = (ok: boolean) => {
     request?.resolve(ok)
     setRequest(null)
@@ -111,9 +115,9 @@ export function ConfirmHost() {
       initialFocusSelector="[data-confirm]"
       footer={
         <>
-          <Button onClick={() => finish(false)}>Cancel</Button>
+          <Button onClick={() => finish(false)}>{request?.cancelLabel ?? t('Cancel')}</Button>
           <Button data-confirm variant={request?.tone === 'primary' ? 'primary' : 'danger'} onClick={() => finish(true)}>
-            {request?.confirmLabel ?? 'Delete'}
+            {request?.confirmLabel ?? t('Delete')}
           </Button>
         </>
       }
