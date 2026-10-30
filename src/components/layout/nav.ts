@@ -1,4 +1,4 @@
-import { BookOpen, Swords, UserRound, type LucideIcon } from 'lucide-react'
+import { BookOpen, Route, Swords, UserRound, type LucideIcon } from 'lucide-react'
 
 export interface NavItem {
   to: string
@@ -9,6 +9,7 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Today', icon: Swords, end: true },
+  { to: '/plan', label: 'Plan', icon: Route },
   { to: '/courses', label: 'Courses', icon: BookOpen },
   { to: '/me', label: 'Me', icon: UserRound },
 ]

@@ -306,6 +306,37 @@ await test('Grade guide: clear steps per class, an email to reopen closed work, 
   assert(!(await guide.getByText('Problem Set 7: Lagrange Multipliers').count()), 'finished work still in the guide')
 })
 
+await test('Plan: one card at a time (turn in, email, learn, study), Done shows the next, until the plan is complete', async (page) => {
+  await page.goto(`${BASE}/`)
+  await ready(page)
+  await page.getByRole('link', { name: 'Plan' }).first().click()
+  const card = page.getByTestId('plan-card')
+  await card.waitFor()
+  const total = Number(/of (\d+)/.exec(await page.getByText(/^Step \d+ of \d+$/).innerText())[1])
+  assert(total >= 4, `plan too short: ${total}`)
+  // "Not now" moves a card to the end of the deck.
+  const first = await card.getByRole('heading', { level: 2 }).innerText()
+  await card.getByRole('button', { name: 'Not now' }).click()
+  await page.waitForTimeout(500)
+  assert((await card.getByRole('heading', { level: 2 }).innerText()) !== first, 'Not now did not move on')
+  const seen = new Set()
+  for (let i = 0; i < 20 && (await card.count()); i++) {
+    const label = await card.getAttribute('aria-label')
+    seen.add(label.split(':')[0])
+    if (label.startsWith('Send an email')) assert(/reopen/.test(await card.getByLabel('Message').inputValue()), 'email card has no draft')
+    if (label.startsWith('Learn what you missed')) await card.getByText('Lecture: Working memory models').waitFor()
+    if (label.startsWith('Study for a test')) await card.getByRole('checkbox', { name: /^Learned / }).first().waitFor()
+    await card.getByRole('button', { name: /I turned it in|I sent it|I learned it|I’m ready/ }).click()
+    await dismissCelebrations(page)
+    await page.waitForTimeout(300)
+  }
+  for (const k of ['Turn in', 'Send an email', 'Learn what you missed', 'Study for a test']) assert(seen.has(k), `no ${k} card: ${[...seen]}`)
+  await page.getByTestId('plan-empty').getByText('Plan complete!').waitFor()
+  // Finished steps stay finished.
+  await page.reload()
+  await page.getByTestId('plan-empty').waitFor()
+})
+
 await test('Old links land on the matching tab', async (page) => {
   await page.goto(`${BASE}/calendar`)
   await ready(page)

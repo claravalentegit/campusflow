@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest'
 import type { XpEvent } from './game'
 import { petMood, petStage } from './pet'
 import { buildGuide, lateOpen, reopenEmail } from './guide'
+import { buildPlan } from './plan'
 import { lockState } from './assignments'
-import type { Assignment, Course, GradeRecord } from './types'
+import type { Assignment, Course, CourseModule, GradeRecord, ModuleItem } from './types'
 
 const NOW = new Date(2026, 9, 28, 15, 0)
 const at = (d: number, h = 15) => new Date(2026, 9, 28 + d, h, 0).toISOString()
@@ -71,5 +72,35 @@ describe('locks', () => {
   it('closed work is not counted as fixable late work', () => {
     const list = [a({ id: 'open', dueAt: at(-1), lockAt: at(2) }), a({ id: 'closed', dueAt: at(-3), lockAt: at(-1) })]
     expect(lateOpen(list, NOW).map((x) => x.id)).toEqual(['open'])
+  })
+})
+
+describe('study plan', () => {
+  const course = { id: 'c', name: 'Algebra', code: 'MATH', instructor: 'Mr. Ruiz', description: '', term: '', color: 'blue', icon: 'calculator', status: 'active', hidden: false, meetingInfo: null, gradeCategories: [], targetGrade: null, source: 'manual', canvasId: null, createdAt: at(-30) } as unknown as Course
+  const lesson = (id: string, type: string, completed = false) => ({ id, title: id, type, assignmentId: null, url: null, completed }) as ModuleItem
+  const modules = [
+    { id: 'm1', courseId: 'c', title: 'Unit 1', position: 0, items: [lesson('notes-1', 'file'), lesson('quiz', 'quiz')], source: 'manual', canvasId: null },
+    { id: 'm2', courseId: 'c', title: 'Unit 2', position: 1, items: [lesson('video-2', 'lecture'), lesson('done-2', 'reading', true)], source: 'manual', canvasId: null },
+  ] as CourseModule[]
+  const list = [
+    a({ id: 'urgent', title: 'Closes soon', pointsPossible: 10, dueAt: at(-1), lockAt: at(0, 20) }),
+    a({ id: 'open', title: 'Open late', pointsPossible: 50, dueAt: at(-2), lockAt: at(5) }),
+    a({ id: 'closed', title: 'Closed', pointsPossible: 10, dueAt: at(-5), lockAt: at(-2), moduleId: 'm1' }),
+    a({ id: 'exam', title: 'Unit test', type: 'exam', pointsPossible: 100, dueAt: at(6) }),
+  ]
+  const plan = buildPlan({ courses: [course], assignments: list, grades: [], modules, done: new Set() }, NOW)
+  it('orders cards: urgent turn-in, email, other turn-ins, learn, study', () => {
+    expect(plan.map((c) => c.kind)).toEqual(['turn-in', 'email', 'turn-in', 'learn', 'study'])
+    expect(plan[0].id).toBe('turn-in:urgent')
+  })
+  it('learn and study cards point at unfinished lessons only', () => {
+    const learn = plan.find((c) => c.kind === 'learn')!
+    expect(learn.kind === 'learn' && learn.lessons.map((l) => l.id)).toEqual(['notes-1'])
+    const study = plan.find((c) => c.kind === 'study')!
+    expect(study.kind === 'study' && study.lessons.map((l) => l.item.id)).toEqual(['video-2', 'notes-1'])
+  })
+  it('drops cards the student finished', () => {
+    const next = buildPlan({ courses: [course], assignments: list, grades: [], modules, done: new Set(plan.filter((c) => c.kind === 'email').map((c) => c.id)) }, NOW)
+    expect(next.some((c) => c.kind === 'email')).toBe(false)
   })
 })

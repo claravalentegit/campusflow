@@ -193,11 +193,9 @@ export function ClassGuideSteps({ g }: { g: ClassGuide }) {
   )
 }
 
-/** A ready-to-send email. CampusFlow never sends anything: the student copies it or opens their email app. */
-export function EmailDialog({ course, teacher, courseCanvasId, items, onClose }: { course: string; teacher: string | null; courseCanvasId: string | null; items: Assignment[]; onClose: () => void }) {
-  const student = useStore((s) => s.prefs.displayName) || 'your student'
+/** An email the student edits and sends themselves: copy it, open Canvas Inbox, or open their email app. */
+export function EmailComposer({ draft, teacher, courseCanvasId, rows = 11 }: { draft: { subject: string; body: string }; teacher: string | null; courseCanvasId: string | null; rows?: number }) {
   const host = useStore((s) => s.prefs.canvasHost)
-  const draft = reopenEmail({ teacher, course, items, student, byDate: format(addDays(new Date(), 2), 'EEEE, MMM d') })
   const [subject, setSubject] = useState(draft.subject)
   const [body, setBody] = useState(draft.body)
   const copy = async () => {
@@ -209,41 +207,40 @@ export function EmailDialog({ course, teacher, courseCanvasId, items, onClose }:
     }
   }
   return (
-    <Dialog
-      open
-      onClose={onClose}
-      title="Ask to reopen"
-      description="Read it, change anything you like, then send it yourself. CampusFlow never sends messages for you."
-      footer={
-        <>
-          <Button onClick={onClose}>Close</Button>
-          <Button variant="primary" icon={Copy} onClick={() => void copy()}>
-            Copy email
-          </Button>
-        </>
-      }
-    >
-      <div className="flex flex-col gap-3">
-        <label className="flex flex-col gap-1 text-sm font-extrabold">
-          Subject
-          <Input value={subject} onChange={(e) => setSubject(e.target.value)} />
-        </label>
-        <label className="flex flex-col gap-1 text-sm font-extrabold">
-          Message
-          <Textarea value={body} rows={11} onChange={(e) => setBody(e.target.value)} className="text-sm leading-relaxed" />
-        </label>
-        <div className="flex flex-wrap gap-2">
-          {host && (
-            <a href={`https://${host}/conversations${courseCanvasId ? `?context_id=course_${courseCanvasId}` : ''}#filter=type=inbox`} target="_blank" rel="noopener noreferrer" className="btn-3d inline-flex h-10 items-center gap-2 rounded-xl border-2 border-line bg-surface px-4 text-sm font-extrabold [--press:var(--line)]">
-              Open Canvas Inbox <ExternalLink className="size-4" aria-hidden />
-            </a>
-          )}
-          <a href={`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`} className="btn-3d inline-flex h-10 items-center gap-2 rounded-xl border-2 border-line bg-surface px-4 text-sm font-extrabold [--press:var(--line)]">
-            <Mail className="size-4" aria-hidden /> Open in email app
+    <div className="flex flex-col gap-3">
+      <label className="flex flex-col gap-1 text-sm font-extrabold">
+        Subject
+        <Input value={subject} onChange={(e) => setSubject(e.target.value)} />
+      </label>
+      <label className="flex flex-col gap-1 text-sm font-extrabold">
+        Message
+        <Textarea value={body} rows={rows} onChange={(e) => setBody(e.target.value)} className="text-sm leading-relaxed" />
+      </label>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="primary" icon={Copy} onClick={() => void copy()}>
+          Copy email
+        </Button>
+        {host && (
+          <a href={`https://${host}/conversations${courseCanvasId ? `?context_id=course_${courseCanvasId}` : ''}#filter=type=inbox`} target="_blank" rel="noopener noreferrer" className="btn-3d inline-flex h-10 items-center gap-2 rounded-xl border-2 border-line bg-surface px-4 text-sm font-extrabold [--press:var(--line)]">
+            Open Canvas Inbox <ExternalLink className="size-4" aria-hidden />
           </a>
-        </div>
-        <p className="text-xs font-semibold text-fg-3">Tip: in Canvas Inbox, choose the class, then {teacher ?? 'your teacher'} as the recipient, and paste.</p>
+        )}
+        <a href={`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`} className="btn-3d inline-flex h-10 items-center gap-2 rounded-xl border-2 border-line bg-surface px-4 text-sm font-extrabold [--press:var(--line)]">
+          <Mail className="size-4" aria-hidden /> Open in email app
+        </a>
       </div>
+      <p className="text-xs font-semibold text-fg-3">Tip: in Canvas Inbox, choose the class, then {teacher ?? 'your teacher'} as the recipient, and paste.</p>
+    </div>
+  )
+}
+
+/** Ready-to-send email asking to reopen closed work. */
+export function EmailDialog({ course, teacher, courseCanvasId, items, onClose }: { course: string; teacher: string | null; courseCanvasId: string | null; items: Assignment[]; onClose: () => void }) {
+  const student = useStore((s) => s.prefs.displayName) || 'your student'
+  const draft = reopenEmail({ teacher, course, items, student, byDate: format(addDays(new Date(), 2), 'EEEE, MMM d') })
+  return (
+    <Dialog open onClose={onClose} title="Ask to reopen" description="Read it, change anything you like, then send it yourself. CampusFlow never sends messages for you." footer={<Button onClick={onClose}>Close</Button>}>
+      <EmailComposer draft={draft} teacher={teacher} courseCanvasId={courseCanvasId} />
     </Dialog>
   )
 }

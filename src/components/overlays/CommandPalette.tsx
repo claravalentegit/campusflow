@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   ArrowRight,
   BookOpen,
+  Route,
   CheckSquare,
   GraduationCap,
   LayoutDashboard,
@@ -63,6 +64,7 @@ export function CommandPalette() {
       { id: 'add-task', label: 'Add task', icon: ListTodo, keywords: 'new todo', run: () => openQuickAdd({ kind: 'task' }) },
       { id: 'focus', label: 'Start a focus session', icon: Timer, hint: 'F', keywords: 'pomodoro timer xp', run: () => setFocusDialogOpen(true) },
       { id: 'nav-today', label: 'Go to Today', icon: LayoutDashboard, keywords: 'home quest', run: go('/') },
+      { id: 'nav-plan', label: 'Open my plan', icon: Route, keywords: 'study plan steps grade help', run: go('/plan') },
       { id: 'nav-courses', label: 'Go to Courses', icon: BookOpen, keywords: 'classes', run: go('/courses') },
       { id: 'nav-me', label: 'My level & badges', icon: Trophy, keywords: 'xp profile streak', run: go('/me') },
       { id: 'nav-grades', label: 'Grades', icon: GraduationCap, keywords: 'courses', run: go('/courses') },

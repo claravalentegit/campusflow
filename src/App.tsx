@@ -26,6 +26,7 @@ const router = createRouter([
     element: <AppShell />,
     children: [
       { path: '/', element: <Today /> },
+      { path: '/plan', lazy: page(() => import('@/pages/Plan'), 'Plan') },
       { path: '/courses', lazy: page(() => import('@/pages/Courses'), 'Courses') },
       { path: '/me', lazy: page(() => import('@/pages/Me'), 'Me') },
       { path: '/connect', lazy: page(() => import('@/pages/Connect'), 'Connect') },

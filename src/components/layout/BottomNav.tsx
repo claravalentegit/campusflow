@@ -21,19 +21,20 @@ function Tab({ item }: { item: NavItem }) {
   )
 }
 
-/** Phone tab bar: Today · Courses · + · Me. */
+/** Phone tab bar: Today · Plan · + · Courses · Me. */
 export function BottomNav() {
   const openQuickAdd = useUi((s) => s.openQuickAdd)
-  const [today, courses, me] = NAV_ITEMS
+  const [today, plan, courses, me] = NAV_ITEMS
   return (
     <nav aria-label="Tabs" className="fixed inset-x-0 bottom-0 z-30 flex h-[76px] border-t-2 border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md sm:hidden">
       <Tab item={today} />
-      <Tab item={courses} />
+      <Tab item={plan} />
       <div className="flex flex-1 items-center justify-center">
         <motion.button whileTap={{ scale: 0.85, rotate: 90 }} type="button" data-sfx="pop" aria-label="Add" onClick={() => openQuickAdd()} className="btn-3d -mt-5 grid size-14 place-items-center rounded-2xl bg-accent text-white [--press:var(--accent-press)]">
           <Plus className="size-7" strokeWidth={3} aria-hidden />
         </motion.button>
       </div>
+      <Tab item={courses} />
       <Tab item={me} />
     </nav>
   )

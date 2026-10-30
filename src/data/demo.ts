@@ -242,6 +242,7 @@ export function buildDemoData(now: Date = new Date()): AppData {
       type: 'reading',
       dueAt: at(-6, '23:59'),
       lockAt: at(-3, '23:59'),
+      moduleId: 'mod_psyc_3',
       priority: 'low',
       estimatedMinutes: 30,
       pointsPossible: 5,
