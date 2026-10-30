@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { XpEvent } from './game'
 import { petMood, petStage } from './pet'
-import { lateOpen, rescueOrder, rescueSteps } from './rescue'
+import { buildGuide, lateOpen, reopenEmail } from './guide'
 import { lockState } from './assignments'
-import type { Assignment } from './types'
+import type { Assignment, Course, GradeRecord } from './types'
 
 const NOW = new Date(2026, 9, 28, 15, 0)
 const at = (d: number, h = 15) => new Date(2026, 9, 28 + d, h, 0).toISOString()
@@ -27,29 +27,36 @@ describe('pet', () => {
   })
 })
 
-describe('rescue plan', () => {
+describe('grade guide', () => {
+  const course = { id: 'c', name: 'Algebra', code: 'MATH', instructor: 'Mr. Ruiz', description: '', term: '', color: 'blue', icon: 'calculator', status: 'active', hidden: false, meetingInfo: null, gradeCategories: [{ id: 'hw', name: 'Homework', weight: 40 }, { id: 'tests', name: 'Tests', weight: 60 }], targetGrade: null, source: 'manual', canvasId: null, createdAt: at(-30) } as unknown as Course
+  const g = (id: string, cat: string, score: number, outOf: number) => ({ id: `g${id}`, courseId: 'c', assignmentId: id, title: id, categoryId: cat, score, outOf, source: 'manual', gradedAt: at(-5) }) as GradeRecord
   const list = [
-    a({ id: 'big', title: 'Lab', estimatedMinutes: 180, dueAt: at(-4) }),
-    a({ id: 'small', title: 'Post', estimatedMinutes: 15, dueAt: at(-1) }),
-    a({ id: 'mid', title: 'HW', estimatedMinutes: 40, dueAt: at(-2) }),
-    a({ id: 'done', estimatedMinutes: 10, dueAt: at(-2), status: 'completed', completedAt: at(-1) }),
-    a({ id: 'future', estimatedMinutes: 5, dueAt: at(3) }),
+    a({ id: 'hw1', gradeCategoryId: 'hw', pointsPossible: 20, dueAt: at(-10), status: 'completed' }),
+    a({ id: 'hw2', title: 'HW 2', gradeCategoryId: 'hw', pointsPossible: 20, dueAt: at(-2), lockAt: at(1) }), // late, closes tomorrow
+    a({ id: 'hw3', title: 'HW 3', gradeCategoryId: 'hw', pointsPossible: 40, dueAt: at(-1), lockAt: at(10) }), // late, open for a while
+    a({ id: 'hw4', title: 'HW 4', gradeCategoryId: 'hw', pointsPossible: 20, dueAt: at(-6), lockAt: at(-3) }), // closed
+    a({ id: 't1', gradeCategoryId: 'tests', pointsPossible: 100, dueAt: at(-8), status: 'completed' }),
+    a({ id: 'next', title: 'Next week', gradeCategoryId: 'hw', pointsPossible: 20, dueAt: at(7) }), // fine, not in the guide
   ]
-  it('only includes open late work, smallest first', () => {
-    expect(rescueOrder(lateOpen(list, NOW))).toEqual(['small', 'mid', 'big'])
+  const guide = buildGuide([course], list, [g('hw1', 'hw', 18, 20), g('t1', 'tests', 68, 100)], NOW)[0]
+  it('lists open work closing soonest first, then by value, and closed work separately', () => {
+    expect(guide.turnIn.map((x) => x.a.id)).toEqual(['hw2', 'hw3'])
+    expect(guide.turnIn[0].closesSoon).toBe(true)
+    expect(guide.closed.map((x) => x.id)).toEqual(['hw4'])
+    expect(guide.needsHelp).toBe(true)
   })
-  it('spreads the work over days within the daily budget', () => {
-    const steps = rescueSteps(['small', 'mid', 'big'], list, NOW, 120)
-    expect(steps.map((s) => s.days.length)).toEqual([1, 1, 2])
-    expect(steps[0].days[0]).toBe('2026-10-28')
-    expect(steps[2].days).toEqual(['2026-10-28', '2026-10-29'])
+  it('estimates the effect on the grade', () => {
+    expect(guide.percent).toBeCloseTo(0.4 * 90 + 0.6 * 68, 1)
+    expect(guide.ifZeros!).toBeLessThan(guide.percent!)
+    expect(guide.ifTurnedIn!).toBeGreaterThan(guide.ifZeros!)
   })
-  it('keeps finished steps in place without days, and skips deleted ones', () => {
-    const steps = rescueSteps(['done', 'gone', 'small'], list, NOW)
-    expect(steps.map((s) => [s.assignmentId, s.done, s.days.length])).toEqual([
-      ['done', true, 0],
-      ['small', false, 1],
-    ])
+  it('points at a heavy category that is low', () => {
+    expect(guide.focus).toMatchObject({ name: 'Tests', weight: 60 })
+  })
+  it('writes a polite email to reopen closed work', () => {
+    const e = reopenEmail({ teacher: 'Mr. Ruiz', course: 'Algebra', items: [list[3]], student: 'Clara', byDate: 'Friday' })
+    expect(e.subject).toContain('HW 4')
+    expect(e.body).toMatch(/Hi Mr. Ruiz,[\s\S]*reopen it[\s\S]*Friday[\s\S]*Clara$/)
   })
 })
 
@@ -61,7 +68,7 @@ describe('locks', () => {
     expect(lockState(a({ lockedForUser: true, lockExplanation: 'Locked by teacher' }), NOW)).toMatchObject({ kind: 'closed', why: 'Locked by teacher' })
     expect(lockState(a({}), NOW)).toBeNull()
   })
-  it('keeps closed work out of the Rescue plan', () => {
+  it('closed work is not counted as fixable late work', () => {
     const list = [a({ id: 'open', dueAt: at(-1), lockAt: at(2) }), a({ id: 'closed', dueAt: at(-3), lockAt: at(-1) })]
     expect(lateOpen(list, NOW).map((x) => x.id)).toEqual(['open'])
   })

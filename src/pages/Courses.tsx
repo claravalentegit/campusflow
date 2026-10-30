@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { differenceInCalendarDays, format, formatDistanceToNowStrict, isToday, isTomorrow, isYesterday } from 'date-fns'
-import { AlertTriangle, Archive, ArchiveRestore, ChevronDown, ExternalLink, Eye, EyeOff, Megaphone, MoreHorizontal, Pencil, Plus, SkipForward, Trash2 } from 'lucide-react'
+import { Archive, ArchiveRestore, ChevronDown, ExternalLink, Eye, EyeOff, Megaphone, MoreHorizontal, Pencil, Plus, SkipForward, Trash2 } from 'lucide-react'
 import { isAssignmentDone, isAssignmentOverdue } from '@/domain/assignments'
 import { formatDueDay, parseInstant } from '@/domain/dates'
-import { letterGrade, missingImpact, requiredForTarget, summarizeCourseGrades } from '@/domain/grades'
+import { letterGrade, requiredForTarget, summarizeCourseGrades } from '@/domain/grades'
 import type { Course, CourseStatus } from '@/domain/types'
 import { useNow } from '@/hooks/useNow'
 import { useStore } from '@/store/appStore'
@@ -15,6 +15,7 @@ import { xpForAssignmentNow } from '@/domain/game'
 import { completeAssignment, skipAssignment, useLinger } from '@/game/actions'
 import { Badge } from '@/components/ui/Badge'
 import { LockTag } from '@/components/LockTag'
+import { ClassGuideSteps, useGuide } from '@/components/GradeGuide'
 import { CourseForm } from '@/components/forms/CourseForm'
 import { CheckButton, Ring, XpChip } from '@/components/game/GameUI'
 import { Page, PageHeader, usePageTitle } from '@/components/Page'
@@ -151,7 +152,7 @@ function CourseCard({ c, index, open, onToggle }: { c: Course; index: number; op
   const upcoming = openWork.filter((a) => a.dueAt && !isAssignmentOverdue(a, now)).sort((x, y) => x.dueAt!.localeCompare(y.dueAt!))
   const summary = summarizeCourseGrades(c, grades, assignments)
   const pct = summary.currentPercent
-  const impact = missingImpact(c, grades, assignments, now)
+  const guide = useGuide().find((g) => g.course.id === c.id)
   const target = c.targetGrade != null && pct != null ? requiredForTarget(summary, c.targetGrade) : null
   const latest = announcements.filter((n) => n.courseId === c.id).sort((x, y) => y.postedAt.localeCompare(x.postedAt))[0]
   const source = summary.sources.includes('canvas') ? 'from Canvas' : summary.sources.includes('demo') ? 'demo grades' : summary.sources.length ? 'grades you entered' : null
@@ -202,14 +203,11 @@ function CourseCard({ c, index, open, onToggle }: { c: Course; index: number; op
                       .join(' · ')}
                   </p>
                 )}
-                {impact.count > 0 && (
-                  <p className="mt-2 flex items-start gap-2 rounded-xl bg-danger-soft px-3 py-2 text-sm font-extrabold text-danger">
-                    <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
-                    <span>
-                      {impact.count} missing {impact.count === 1 ? 'assignment' : 'assignments'}
-                      {impact.ifZero != null && impact.current != null && impact.ifZero < impact.current - 0.05 ? `. If graded as zero, your grade could drop to about ${impact.ifZero.toFixed(0)}%.` : '.'}
-                    </span>
-                  </p>
+                {guide?.needsHelp && (
+                  <div className="mt-3 rounded-2xl border-2 border-[#0ea5a4]/40 p-3">
+                    <p className="mb-2 text-xs font-black tracking-[0.12em] text-[#0b8584] uppercase">What to do</p>
+                    <ClassGuideSteps g={guide} />
+                  </div>
                 )}
                 {target?.requiredPercent != null && target.requiredPercent > 0 && <p className="mt-2 text-sm font-bold text-fg-2">Goal {c.targetGrade}%: {target.requiredPercent > 100 ? 'out of reach on the remaining work.' : `you need about ${Math.ceil(target.requiredPercent)}% on what’s left.`}</p>}
               </section>

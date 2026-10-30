@@ -336,8 +336,6 @@ export interface Preferences {
   familySharing: boolean
   /** Assignments the student skipped: hidden everywhere in CampusFlow and ignored by future syncs. */
   skipped: SkippedAssignment[]
-  /** The active Rescue plan: late assignments in their fixed order. */
-  rescue: { ids: ID[]; startedAt: ISODateTime } | null
 }
 
 /** A skipped assignment, kept so it can be restored. Skipping never changes anything on Canvas. */

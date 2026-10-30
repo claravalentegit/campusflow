@@ -47,7 +47,6 @@ export const DEFAULT_PREFS: Preferences = {
   canvasUser: null,
   canvasHost: null,
   pet: null,
-  rescue: null,
   skipped: [],
   familySharing: false,
 }

@@ -12,6 +12,7 @@ import type { Assignment, ISODateTime, StudyTask } from './types'
  * - Your streak counts consecutive gold days (today counts once it turns gold).
  */
 
+/** 'rescue' is kept so XP earned from the old Rescue plan still counts. */
 export type XpKind = 'assignment' | 'task' | 'focus' | 'quest' | 'rescue'
 
 export interface XpEvent {

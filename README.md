@@ -38,12 +38,14 @@ Three tabs. Nothing opens a separate page: tapping something opens it right wher
 - **Today**: your study pet, the daily quest (hearts), and everything to do, sorted into Late,
   Today, This week and Later. Tap a quest to open it in place: due date, description, stages you
   can check off for XP, a 25-minute focus timer, Edit, and Open in Canvas.
-- **Rescue plan**: appears on Today when 2 or more assignments are late. It orders them smallest
-  first and spreads them over the next days (about 2 hours a day). Finishing the whole plan pays
-  a +50 XP bonus. It's rule-based and says so.
+- **Grade guide**: on Today, one row per class that needs something, opening into clear steps:
+  turn in the late or closing-soon work Canvas still accepts (most valuable first), ask the teacher
+  to reopen closed work (with a ready-to-edit email the student sends themselves), and focus on a heavy
+  category that's low. Includes an estimate of what turning work in could do to the grade, and a
+  "How to raise your grade" help button. Rule-based; CampusFlow never contacts teachers.
 - **Study pet**: each student picks one of five pets (dragon, cat, bunny, fox, axolotl) and names
   it. It grows with your level (egg → baby → kid → teen → grown up → legend), shows your mood
-  (happy, okay with 1 late, worried with 2+ late, sleepy after 2 quiet days), jumps when XP lands,
+  (happy, okay with 1 late, worried with 2+ late that can still be turned in, sleepy after 2 quiet days), jumps when XP lands,
   and never dies.
 - **Courses**: one card per class. Tap it to see your grade, what missing work could cost you,
   what's due next, the latest announcement, and Open in Canvas.
@@ -62,7 +64,7 @@ Three tabs. Nothing opens a separate page: tapping something opens it right wher
   Canvas.
 - **Demo data is labeled as demo.** A banner appears on the dashboard and the Settings status
   reads *Demo mode — not connected*. Demo submission states and grades carry a *Demo* label.
-- **Rule-based means rule-based.** The Rescue plan and "Suggest stages" explain the rules they
+- **Rule-based means rule-based.** The Grade guide and "Suggest stages" explain the rules they
   use and are never called AI.
 - **No invented grades.** If there's nothing graded, the app shows *Not enough data*.
 

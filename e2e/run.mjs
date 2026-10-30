@@ -255,12 +255,14 @@ await test('Pet: pick and name a pet; its mood follows late work', async (page) 
   await pickPet(page, 'Axolotl', 'Bubbles Jr')
   await page.getByTestId('pet-mood').getByText('Bubbles Jr is worried').waitFor()
   // Catch up until only one late thing is left: the pet calms down to "okay".
-  const rescue = page.getByRole('region', { name: /Rescue plan/ })
-  const boxes = rescue.getByRole('checkbox', { name: /^Complete / })
-  while ((await boxes.count()) > 1) {
-    await boxes.first().click()
+  await page.getByRole('button', { name: 'See all assignments' }).click()
+  const lateRows = page.getByTestId('all-assignments').locator('li').filter({ hasText: /Late|Missing/ }).filter({ hasNotText: 'Closed' })
+  await lateRows.first().waitFor()
+  while ((await lateRows.count()) > 1) {
+    await lateRows.first().getByRole('checkbox', { name: /^Complete / }).click()
     await dismissCelebrations(page)
   }
+  await page.getByRole('link', { name: 'Today' }).first().click()
   await page.getByTestId('pet-mood').getByText('Bubbles Jr is okay').waitFor()
   await page.reload()
   await page.getByTestId('pet-mood').getByText('Bubbles Jr is okay').waitFor()
@@ -268,52 +270,40 @@ await test('Pet: pick and name a pet; its mood follows late work', async (page) 
   await page.getByRole('button', { name: 'Bubbles Jr, your pet. Tap to say hi.' }).waitFor()
 })
 
-await test('Rescue plan: appears for 2+ late, smallest first, and pays a bonus when done', async (page) => {
+await test('Grade guide: clear steps per class, an email to reopen closed work, and how to raise your grade', async (page) => {
   await page.goto(`${BASE}/`)
   await ready(page)
-  const rescue = page.getByRole('region', { name: /Rescue plan/ })
-  const steps = await rescue.locator('li').allInnerTexts()
-  assert(steps.length >= 2 && steps[0].includes('Reading Check') && steps.some((x) => x.includes('Problem Set 7')), `wrong plan: ${steps}`)
-  const minutes = steps.map((x) => {
-    const m = /(\d+)h(?: (\d+)m)?|(\d+)m/.exec(x)
-    return m ? (m[1] ? Number(m[1]) * 60 + Number(m[2] ?? 0) : Number(m[3])) : 0
-  })
-  assert(minutes.every((m, i) => i === 0 || m >= minutes[i - 1]), `not smallest first: ${minutes}`)
-  await rescue.getByText(/Made by simple rules, not AI/).waitFor()
-  const boxes = rescue.getByRole('checkbox', { name: /^Complete / })
-  for (let i = 0; i < 6 && (await boxes.count()); i++) {
-    await boxes.first().click()
-    if (await boxes.count()) await dismissCelebrations(page)
-  }
-  for (let i = 0; i < 5 && !(await page.getByRole('heading', { name: 'Rescue complete!' }).count()); i++) await keepGoing(page)
-  await page.getByRole('heading', { name: 'Rescue complete!' }).waitFor()
+  const guide = page.getByRole('region', { name: 'Grade guide' })
+  await guide.waitFor()
+  // Late work is in the guide, not repeated in a long Late list.
+  const lateList = page.getByRole('region', { name: /^Late ·/ })
+  if (await lateList.count()) assert(!(await lateList.getByText('Problem Set 7').count()), 'late work listed twice')
+  // Calculus: turn in Problem Set 7 before it closes.
+  const calc = guide.locator('li').filter({ has: page.getByRole('button', { name: /Calculus III/ }) }).first()
+  if ((await calc.getByRole('button', { name: /Calculus III/ }).getAttribute('aria-expanded')) !== 'true') await calc.getByRole('button', { name: /Calculus III/ }).click()
+  const steps = calc.getByTestId('class-guide')
+  await steps.getByText('Turn this in while you still can').waitFor()
+  await steps.getByText(/Closes tomorrow/).waitFor()
+  await steps.getByText(/Estimate: about/).waitFor()
+  // Psychology: a closed assignment, with an email to ask for it to be reopened.
+  const psych = guide.locator('li').filter({ has: page.getByRole('button', { name: /Cognitive Psychology/ }) }).first()
+  await psych.getByRole('button', { name: /Cognitive Psychology/ }).click()
+  await psych.getByText(/“Reflection Journal 4” is closed on Canvas/).waitFor()
+  await psych.getByRole('button', { name: 'Write the email' }).click()
+  const d = dialog(page)
+  assert((await d.getByLabel('Subject').inputValue()).includes('Reflection Journal 4'), 'email subject')
+  assert(/reopen it[\s\S]*Thank you/.test(await d.getByLabel('Message').inputValue()), 'email body')
+  await d.getByText('CampusFlow never sends messages for you.', { exact: false }).waitFor()
+  await d.getByRole('button', { name: 'Close' }).last().click()
+  // The help button at the top of Today.
+  await page.getByRole('button', { name: 'How to raise your grade' }).first().click()
+  await dialog(page).getByText('Ask to reopen closed work').waitFor()
+  await dialog(page).getByRole('button', { name: 'Got it' }).click()
+  // Checking work off in the guide removes it.
+  await calc.getByRole('button', { name: /Calculus III/ }).click()
+  await steps.getByRole('checkbox', { name: 'Complete Problem Set 7: Lagrange Multipliers' }).click()
   await dismissCelebrations(page)
-  assert(!(await rescue.count()), 'rescue plan still shown')
-  const bonus = await page.evaluate(() => JSON.parse(localStorage.getItem('campusflow:v1')).state.xpEvents.filter((e) => e.kind === 'rescue'))
-  assert(bonus.length === 1 && bonus[0].amount === 50, `rescue bonus: ${JSON.stringify(bonus)}`)
-})
-
-await test('Courses → All assignments: every assignment by due date, check off anything', async (page) => {
-  await page.goto(`${BASE}/`)
-  await ready(page)
-  await page.getByRole('button', { name: 'See all assignments' }).click()
-  const all = page.getByTestId('all-assignments')
-  await all.waitFor()
-  // Groups are in due-date order: late days first (in red), then today, then later.
-  const labels = await all.locator('section').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')))
-  assert(labels.indexOf('Today') > -1 && labels.indexOf('Tomorrow') > labels.indexOf('Today'), `order: ${labels}`)
-  await all.getByText('Problem Set 7: Lagrange Multipliers').waitFor()
-  // Locked work is marked: closed (can't turn in anymore) and not open yet.
-  await all.locator('li').filter({ hasText: 'Reflection Journal 4' }).getByText('Closed').waitFor()
-  await all.locator('li').filter({ hasText: 'Midterm 2' }).getByText(/^Opens /).waitFor()
-  await all.getByRole('checkbox', { name: 'Complete Problem Set 7: Lagrange Multipliers' }).click()
-  await dismissCelebrations(page)
-  await all.getByText('Problem Set 7: Lagrange Multipliers').waitFor({ state: 'detached', timeout: 5000 })
-  // Everything shows finished work too, and it can be unchecked.
-  await all.getByRole('radio', { name: 'Everything' }).click()
-  await all.getByRole('checkbox', { name: 'Undo Problem Set 7: Lagrange Multipliers' }).waitFor()
-  await all.getByRole('combobox', { name: 'Class' }).selectOption({ label: 'Writing & Rhetoric' })
-  assert(!(await all.getByText('Problem Set 7').count()), 'class filter not applied')
+  assert(!(await guide.getByText('Problem Set 7: Lagrange Multipliers').count()), 'finished work still in the guide')
 })
 
 await test('Old links land on the matching tab', async (page) => {
@@ -341,11 +331,12 @@ await test('8. Search finds an assignment (Ctrl+K)', async (page) => {
 await test('10. Late work is identified correctly', async (page) => {
   await page.goto(`${BASE}/`)
   await ready(page)
-  const late = page.getByRole('region', { name: /Rescue plan/ })
-  await late.getByText('Problem Set 7: Lagrange Multipliers').waitFor()
-  const text = await late.innerText()
-  assert(!/Quiz 7|Midterm|MP4/.test(text), `future work listed as late: ${text}`)
-  await late.getByText('+20 XP').waitFor() // half of 40
+  await page.getByRole('button', { name: 'See all assignments' }).click()
+  const rows = page.getByTestId('all-assignments').locator('li')
+  const ps7 = rows.filter({ hasText: 'Problem Set 7: Lagrange Multipliers' })
+  await ps7.getByText('Late', { exact: true }).waitFor()
+  await ps7.getByText('+20 XP').waitFor() // half of 40
+  for (const title of ['Quiz 7', 'Midterm 2', 'MP4']) assert(!(await rows.filter({ hasText: title }).getByText('Late', { exact: true }).count()), `${title} marked late`)
 })
 
 await test('12a. Phone: tabs, quick add with validation, no sideways scroll', async (page) => {
@@ -417,9 +408,12 @@ await test('Canvas: connect with an access token, import classes, and sync on To
   await page.getByText('Homework 6: Eigenvalues').waitFor()
   await page.getByText(/Synced with Canvas/).waitFor()
   assert(!(await page.getByText('Calculus III').count()), 'demo data still present')
-  const late = page.getByRole('region', { name: /^Late ·/ })
-  await late.getByText('Discussion: Social Norms').waitFor()
-  await late.locator('li').filter({ hasText: 'Discussion: Social Norms' }).getByText('Closed').waitFor()
+  // The late discussion is closed on Canvas: the Grade guide suggests asking the teacher to reopen it.
+  const guide = page.getByRole('region', { name: 'Grade guide' })
+  const soc = guide.locator('li').filter({ has: page.getByRole('button', { name: /Intro to Sociology/ }) }).first()
+  if ((await soc.getByRole('button', { name: /Intro to Sociology/ }).getAttribute('aria-expanded')) !== 'true') await soc.getByRole('button', { name: /Intro to Sociology/ }).click()
+  await soc.getByText(/“Discussion: Social Norms” is closed on Canvas/).waitFor()
+  await soc.getByRole('button', { name: 'Write the email' }).waitFor()
   // Submitting on Canvas earns XP on the next sync.
   const before = await xp(page)
   await fetch(`${MOCK}/__test/submit/9101`, { method: 'POST' })

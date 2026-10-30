@@ -26,7 +26,6 @@ export interface FamilySnapshot {
   announcements: Announcement[]
   /** Things finished per day, last 14 days, for "done this week". */
   completions: string[]
-  rescueIds: string[]
 }
 
 export const familyApi = {
@@ -56,7 +55,6 @@ export function buildSnapshot(s: AppState, now = new Date()): FamilySnapshot {
     grades: s.grades,
     announcements: [...s.announcements].sort((a, b) => b.postedAt.localeCompare(a.postedAt)).slice(0, 40).map((a) => ({ ...a, body: a.body.slice(0, 800) })),
     completions: s.xpEvents.filter((e) => (e.kind === 'assignment' || e.kind === 'task') && new Date(e.at).getTime() > since).map((e) => e.at),
-    rescueIds: s.prefs.rescue?.ids ?? [],
   }
 }
 

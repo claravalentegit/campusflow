@@ -16,7 +16,7 @@ import { completeAssignment, completeTask, skipAssignment, useLinger } from '@/g
 import { CourseDot } from '@/components/course'
 import { CheckButton, LevelBadge, XpChip } from '@/components/game/GameUI'
 import { PetCard } from '@/components/game/PetCard'
-import { RescueCard } from '@/components/game/RescueCard'
+import { GradeGuideCard, HelpButton, useGuide } from '@/components/GradeGuide'
 import { AssignmentDetails, TaskDetails } from '@/components/QuestDetails'
 import { LockTag } from '@/components/LockTag'
 import { Page, usePageTitle } from '@/components/Page'
@@ -42,7 +42,9 @@ export function Today() {
   const [showDone, setShowDone] = useState(false)
   const [openKey, setOpenKey] = useState<string | null>(null)
   const [params, setParams] = useSearchParams()
-  const rescueIds = useMemo(() => new Set(prefs.rescue?.ids ?? []), [prefs.rescue])
+  // Late work that the Grade guide covers (still open, or closed) isn't repeated in the Late list.
+  const guide = useGuide()
+  const rescueIds = useMemo(() => new Set(guide.flatMap((g) => [...g.turnIn.filter((t) => t.late).map((t) => t.a.id), ...g.closed.map((a) => a.id)])), [guide])
 
   // Search and "Open" links land here with ?open=<assignment id>: open that quest in place.
   useEffect(() => {
@@ -118,13 +120,16 @@ export function Today() {
         <p className="mt-1 text-base font-bold text-fg-2" data-testid="day-summary">
           {summary}
         </p>
-        <CanvasLine />
+        <div className="flex flex-wrap items-center gap-x-2">
+          <CanvasLine />
+          <HelpButton />
+        </div>
       </div>
 
       <PetCard />
 
       <div className="mt-6 flex flex-col gap-6">
-        <RescueCard />
+        <GradeGuideCard />
         <Group id="late" label="Late · catch up for half XP" tone="late" items={groups.late}>
           {groups.late.map((i) => row(i, { late: true }))}
         </Group>
@@ -146,7 +151,7 @@ export function Today() {
           </Group>
         )}
 
-        {openToday + groups.week.length + groups.later.length === 0 && !prefs.rescue && (
+        {openToday + groups.week.length + groups.later.length === 0 && (
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="card-3d flex flex-col items-center gap-2 px-6 py-10 text-center">
             <Trophy className="bob size-12 text-gold" aria-hidden />
             <p className="text-lg font-black">Nothing left on your list</p>

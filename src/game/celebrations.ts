@@ -5,7 +5,6 @@ export type Celebration =
   | { kind: 'quest'; streak: number; bonus: number }
   | { kind: 'level'; level: number }
   | { kind: 'badge'; id: BadgeId }
-  | { kind: 'rescue'; bonus: number }
 
 export const useCelebrations = create<{ queue: Celebration[]; push: (c: Celebration) => void; next: () => void }>((set) => ({
   queue: [],

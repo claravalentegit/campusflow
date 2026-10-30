@@ -1,4 +1,4 @@
-import { lateOpen } from './rescue'
+import { lateOpen } from './guide'
 import type { XpEvent } from './game'
 import type { Assignment } from './types'
 
