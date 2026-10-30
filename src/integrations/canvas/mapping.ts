@@ -120,6 +120,7 @@ export function mapCanvasSnapshot(raw: CanvasRawSnapshot): CanvasMapped {
         canvasSubmission: sub
           ? { state: sub.missing && sub.workflow_state === 'unsubmitted' ? 'missing' : sub.workflow_state, submittedAt: sub.submitted_at, syncedAt, source: 'canvas' }
           : null,
+        canvasSubmissionTypes: a.submission_types ?? null,
         source: 'canvas',
         canvasId: String(a.id),
         htmlUrl: a.html_url,

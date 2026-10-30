@@ -9,6 +9,25 @@ export function isAssignmentDone(a: Assignment): boolean {
   return a.canvasSubmission != null && OFFICIALLY_SUBMITTED.has(a.canvasSubmission.state)
 }
 
+/** Canvas types that are turned in somewhere else (on paper, in class), so Canvas never shows a submission. */
+const OFFLINE_TYPES = new Set(['none', 'on_paper', 'not_graded', 'wiki_page'])
+
+/**
+ * A real Canvas assignment that has to be turned in on Canvas: it can only be checked off once Canvas
+ * shows it as submitted. Demo and hand-added work, and paper or in-class work, can be checked off anytime.
+ */
+export function needsCanvasSubmission(a: Assignment): boolean {
+  if (a.source !== 'canvas') return false
+  const types = a.canvasSubmissionTypes
+  if (types && types.length && types.every((t) => OFFLINE_TYPES.has(t))) return false
+  return true
+}
+
+/** Can the student check this off now? Not if Canvas still needs it turned in. */
+export function canCheckOff(a: Assignment): boolean {
+  return isAssignmentDone(a) || !needsCanvasSubmission(a)
+}
+
 export function isOverdue(a: Pick<Assignment, 'dueAt'>, done: boolean, now: Date): boolean {
   const due = parseInstant(a.dueAt)
   return !done && due != null && due.getTime() < now.getTime()

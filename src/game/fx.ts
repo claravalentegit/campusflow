@@ -59,6 +59,11 @@ export const sfx = {
   },
   badge: () => arpeggio([880, 1109, 1319, 1760], 0.06, 0.25, 'sine', 0.1),
   undo: () => tone(500, 0, 0.14, { type: 'sine', slideTo: 260, gain: 0.08 }),
+  /** Not allowed: a low double buzz. */
+  nope: () => {
+    tone(196, 0, 0.09, { type: 'square', gain: 0.05 })
+    tone(165, 0.11, 0.14, { type: 'square', gain: 0.05 })
+  },
   /** Soft tick for any button press. */
   click: () => tone(720, 0, 0.035, { type: 'triangle', gain: 0.035 }),
   /** Switching tabs. */

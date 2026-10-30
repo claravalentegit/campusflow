@@ -445,6 +445,22 @@ await test('Canvas: connect with an access token, import classes, and sync on To
   if ((await soc.getByRole('button', { name: /Intro to Sociology/ }).getAttribute('aria-expanded')) !== 'true') await soc.getByRole('button', { name: /Intro to Sociology/ }).click()
   await soc.getByText(/“Discussion: Social Norms” is closed on Canvas/).waitFor()
   await soc.getByRole('button', { name: 'Write the email' }).waitFor()
+  // Not turned in on Canvas yet: it can't be checked off (a red ✕), and nothing is earned.
+  const labCheck = page.getByRole('checkbox', { name: 'Complete Lab Report 3: Distillation' })
+  const xpBefore = await xp(page)
+  await labCheck.click()
+  await page.locator('[role=checkbox][data-refused]').waitFor()
+  await page.getByText(/Not turned in on Canvas yet/).waitFor()
+  await page.screenshot({ path: join(shots, 'canvas-refused.png') })
+  assert((await labCheck.getAttribute('aria-checked')) === 'false', 'unsubmitted Canvas work was checked off')
+  assert((await xp(page)) === xpBefore, 'XP given for work not turned in')
+  // Once it's turned in on Canvas, tapping it again checks with Canvas and checks it off.
+  await page.waitForTimeout(1500)
+  await fetch(`${MOCK}/__test/submit/9201`, { method: 'POST' })
+  await labCheck.click()
+  await page.getByText('Canvas shows “Lab Report 3: Distillation” as turned in. Checked off!').waitFor()
+  await fetch(`${MOCK}/__test/unsubmit/9201`, { method: 'POST' })
+  await dismissCelebrations(page)
   // Submitting on Canvas earns XP on the next sync.
   const before = await xp(page)
   await fetch(`${MOCK}/__test/submit/9101`, { method: 'POST' })

@@ -329,8 +329,8 @@ function AllAssignments() {
                         checked={done}
                         label={done ? t('Undo {title}', { title: a.title }) : t('Complete {title}', { title: a.title })}
                         onToggle={(el) => {
+                          if (!completeAssignment(a, el)) return false
                           if (!done) linger(a.id)
-                          completeAssignment(a, el)
                         }}
                       />
                       <span className="min-w-0 flex-1">

@@ -3,6 +3,7 @@ import { ChevronDown, Plus, X } from 'lucide-react'
 import { combineLocalDateTime, splitLocalDateTime } from '@/domain/dates'
 import { newId } from '@/domain/ids'
 import { STATUS_LABEL, TYPE_LABEL } from '@/domain/labels'
+import { canCheckOff } from '@/domain/assignments'
 import type { Assignment, AssignmentStatus, AssignmentType, Priority, ResourceLink } from '@/domain/types'
 import { ASSIGNMENT_STATUSES, ASSIGNMENT_TYPES } from '@/domain/types'
 import { useStore } from '@/store/appStore'
@@ -43,6 +44,8 @@ export function AssignmentForm({ formId, initial, preset, onDone }: AssignmentFo
   const [more, setMore] = useState(!!initial)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const fromCanvas = initial?.source === 'canvas'
+  // Canvas work that isn't turned in can't be marked done here either.
+  const lockedDone = !!initial && !canCheckOff(initial)
   const tt = useT()
 
   const submit = (e: React.FormEvent) => {
@@ -146,7 +149,7 @@ export function AssignmentForm({ formId, initial, preset, onDone }: AssignmentFo
         <Field label="Your status" className="col-span-2 sm:col-span-1">
           {(p) => (
             <Select {...p} value={status} onChange={(e) => setStatus(e.target.value as AssignmentStatus)}>
-              {ASSIGNMENT_STATUSES.map((s) => (
+              {ASSIGNMENT_STATUSES.filter((s) => !lockedDone || !['completed', 'submitted'].includes(s) || s === initial?.status).map((s) => (
                 <option key={s} value={s}>
                   {tt(STATUS_LABEL[s])}
                 </option>

@@ -39,6 +39,7 @@ export function mergeCanvasData(data: AppData, incoming: CanvasMapped): AppData 
       gradeCategoryId: prev.gradeCategoryId ?? next.gradeCategoryId,
       moduleId: next.moduleId ?? prev.moduleId,
       canvasSubmission: next.canvasSubmission,
+      canvasSubmissionTypes: next.canvasSubmissionTypes,
       htmlUrl: next.htmlUrl,
       unlockAt: next.unlockAt,
       lockAt: next.lockAt,

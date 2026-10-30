@@ -159,11 +159,22 @@ export function XpChip({ amount, tone = 'gold', className }: { amount: number; t
  * The satisfying checkbox: squash on press, pop + checkmark draw + ring burst on complete.
  * Calls onToggle with its own element so effects can start from it.
  */
-export function CheckButton({ checked, onToggle, label, size = 'md', className }: { checked: boolean; onToggle: (el: HTMLElement) => void; label: string; size?: 'md' | 'lg'; className?: string }) {
+/**
+ * The big round-cornered check. onToggle can return false to refuse (for example, Canvas work that
+ * isn't turned in yet): the box shakes and shows a red ✕ for a moment instead of a check.
+ */
+export function CheckButton({ checked, onToggle, label, size = 'md', className }: { checked: boolean; onToggle: (el: HTMLElement) => boolean | void; label: string; size?: 'md' | 'lg'; className?: string }) {
   const ref = useRef<HTMLButtonElement>(null)
   const [burstKey, setBurstKey] = useState(0)
+  const [refused, setRefused] = useState(0)
   const reduce = useReducedMotion()
   const dims = size === 'lg' ? 'size-10 rounded-xl' : 'size-8 rounded-[10px]'
+  useEffect(() => {
+    if (!refused) return
+    const id = setTimeout(() => setRefused(0), 1300)
+    return () => clearTimeout(id)
+  }, [refused])
+  const no = refused > 0
   return (
     <motion.button
       ref={ref}
@@ -171,26 +182,32 @@ export function CheckButton({ checked, onToggle, label, size = 'md', className }
       role="checkbox"
       aria-checked={checked}
       aria-label={label}
+      data-refused={no || undefined}
       onClick={(e) => {
         e.stopPropagation()
-        if (!checked) setBurstKey((k) => k + 1)
-        onToggle(ref.current as HTMLElement)
+        const ok = onToggle(ref.current as HTMLElement)
+        if (ok === false) setRefused((n) => n + 1)
+        else if (!checked) setBurstKey((k) => k + 1)
       }}
       whileHover={reduce ? undefined : { scale: 1.08 }}
       whileTap={reduce ? undefined : { scale: 0.8 }}
-      animate={checked && !reduce ? { scale: [1, 1.3, 0.95, 1] } : { scale: 1 }}
-      transition={{ duration: 0.4 }}
+      animate={no && !reduce ? { x: [0, -6, 6, -4, 4, 0] } : checked && !reduce ? { scale: [1, 1.3, 0.95, 1] } : { scale: 1, x: 0 }}
+      transition={{ duration: no ? 0.35 : 0.4 }}
       className={cn(
         'relative z-[1] grid shrink-0 place-items-center border-[3px] transition-colors before:absolute before:-inset-2 before:content-[""]',
         dims,
-        checked ? 'border-success-bright bg-success-bright shadow-[inset_0_-3px_0_var(--success-press)]' : 'border-line-strong bg-surface hover:border-success-bright hover:bg-success-soft',
+        no ? 'border-danger bg-danger shadow-[inset_0_-3px_0_rgb(0_0_0/0.2)]' : checked ? 'border-success-bright bg-success-bright shadow-[inset_0_-3px_0_var(--success-press)]' : 'border-line-strong bg-surface hover:border-success-bright hover:bg-success-soft',
         className,
       )}
     >
       <svg viewBox="0 0 24 24" className={size === 'lg' ? 'size-6' : 'size-5'} aria-hidden>
-        <motion.path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="white" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" initial={false} animate={{ pathLength: checked ? 1 : 0, opacity: checked ? 1 : 0 }} transition={{ duration: 0.3, delay: checked ? 0.08 : 0 }} />
+        {no ? (
+          <motion.path key={refused} d="M7 7l10 10M17 7L7 17" fill="none" stroke="white" strokeWidth={3.5} strokeLinecap="round" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.2 }} />
+        ) : (
+          <motion.path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="white" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" initial={false} animate={{ pathLength: checked ? 1 : 0, opacity: checked ? 1 : 0 }} transition={{ duration: 0.3, delay: checked ? 0.08 : 0 }} />
+        )}
       </svg>
-      {burstKey > 0 && !reduce && (
+      {burstKey > 0 && !reduce && !no && (
         <motion.span key={burstKey} aria-hidden className="pointer-events-none absolute inset-0 rounded-[inherit] border-4 border-success-bright" initial={{ scale: 1, opacity: 0.9 }} animate={{ scale: 2.4, opacity: 0 }} transition={{ duration: 0.55, ease: 'easeOut' }} />
       )}
     </motion.button>

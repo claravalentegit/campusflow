@@ -3,7 +3,7 @@ import type { XpEvent } from './game'
 import { petMood, petStage } from './pet'
 import { buildGuide, lateOpen, reopenEmail } from './guide'
 import { buildPlan } from './plan'
-import { lockState } from './assignments'
+import { canCheckOff, lockState, needsCanvasSubmission } from './assignments'
 import type { Assignment, Course, CourseModule, GradeRecord, ModuleItem } from './types'
 
 const NOW = new Date(2026, 9, 28, 15, 0)
@@ -58,6 +58,19 @@ describe('grade guide', () => {
     const e = reopenEmail({ teacher: 'Mr. Ruiz', course: 'Algebra', items: [list[3]], student: 'Clara', byDate: 'Friday' })
     expect(e.subject).toContain('HW 4')
     expect(e.body).toMatch(/Hi Mr. Ruiz,[\s\S]*reopen it[\s\S]*Friday[\s\S]*Clara$/)
+  })
+})
+
+describe('Canvas check-off', () => {
+  it('real Canvas work can only be checked off once Canvas shows it turned in', () => {
+    const online = a({ source: 'canvas', canvasSubmissionTypes: ['online_upload'], canvasSubmission: { state: 'unsubmitted', submittedAt: null, syncedAt: at(0), source: 'canvas' } })
+    expect(canCheckOff(online)).toBe(false)
+    expect(canCheckOff({ ...online, canvasSubmission: { ...online.canvasSubmission!, state: 'submitted' } })).toBe(true)
+    expect(needsCanvasSubmission(a({ source: 'canvas', canvasSubmissionTypes: ['on_paper'] }))).toBe(false)
+    expect(needsCanvasSubmission(a({ source: 'canvas', canvasSubmissionTypes: ['none'] }))).toBe(false)
+    expect(needsCanvasSubmission(a({ source: 'canvas' }))).toBe(true) // synced before types were stored
+    expect(canCheckOff(a({ source: 'manual' }))).toBe(true)
+    expect(canCheckOff(a({ source: 'demo' }))).toBe(true)
   })
 })
 

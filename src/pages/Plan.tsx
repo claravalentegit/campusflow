@@ -50,12 +50,12 @@ export function Plan() {
   const total = finished + cards.length
 
   const markDone = (card: PlanCard, el: Element | null) => {
+    // Canvas work only counts once Canvas shows it turned in.
+    if (card.kind === 'turn-in' && !completeAssignment(card.t.a, el)) return
     setDir(1)
     setFinished((n) => n + 1)
     setLater((l) => l.filter((id) => id !== card.id))
-    if (card.kind === 'turn-in') {
-      completeAssignment(card.t.a, el)
-    } else {
+    if (card.kind !== 'turn-in') {
       const st = useStore.getState()
       const xpId = `plan_${card.id}`
       st.updatePrefs({ planDone: [...st.prefs.planDone.filter((d) => d.id !== card.id), { id: card.id, at: new Date().toISOString() }].slice(-300) })

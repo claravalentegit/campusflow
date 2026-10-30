@@ -242,9 +242,9 @@ function QuestRow({ item, now, course, parent, tasks, late, open, onDone, onOpen
           checked={done}
           label={done ? t('Undo {title}', { title }) : t('Complete {title}', { title })}
           onToggle={(el) => {
+            if (isA && !completeAssignment(item.a, el)) return false
             if (!done) onDone(key)
-            if (isA) completeAssignment(item.a, el)
-            else completeTask(item.t, el)
+            if (!isA) completeTask(item.t, el)
           }}
         />
         <button type="button" onClick={onOpen} aria-expanded={open} data-sfx={open ? 'close' : 'open'} className="min-w-0 flex-1 text-left outline-none after:absolute after:inset-0 focus-visible:underline">

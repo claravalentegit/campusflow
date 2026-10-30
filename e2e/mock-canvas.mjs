@@ -55,6 +55,12 @@ export function startMockCanvas(port = 8898) {
       for (const list of Object.values(assignments)) for (const a of list) if (a.id === id) a.submission = { workflow_state: 'submitted', submitted_at: new Date().toISOString(), missing: false }
       return send(res, 200, { ok: true })
     }
+    // Test hook: undo that, so later tests start from the same data.
+    if (p.startsWith('/__test/unsubmit/') && req.method === 'POST') {
+      const id = Number(p.split('/').pop())
+      for (const list of Object.values(assignments)) for (const a of list) if (a.id === id) a.submission = { workflow_state: 'unsubmitted', submitted_at: null, missing: false }
+      return send(res, 200, { ok: true })
+    }
     // REST API
     if (!p.startsWith('/api/v1/')) return send(res, 404, { errors: [{ message: 'not found' }] })
     if (!auth(req)) return send(res, 401, { errors: [{ message: 'Invalid access token.' }] })

@@ -170,6 +170,8 @@ export interface Assignment {
   pointsPossible: number | null
   gradeCategoryId: ID | null
   moduleId: ID | null
+  /** How Canvas takes this assignment (online_upload, on_paper, none…). Missing on data synced before this was added. */
+  canvasSubmissionTypes?: string[] | null
   canvasSubmission: CanvasSubmission | null
   source: RecordSource
   canvasId: string | null
