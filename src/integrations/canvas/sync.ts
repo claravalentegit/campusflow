@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { create } from 'zustand'
 import { useStore } from '@/store/appStore'
 import { toast } from '@/store/ui'
-import { celebrateCompletion, sfx } from '@/game/fx'
+import { sfx } from '@/game/fx'
 import { canvasApi, CanvasError } from './adapter'
 import { tr } from '@/i18n/core'
 
@@ -23,13 +23,12 @@ export function setSyncNavigator(fn: (to: string) => void) {
 export interface SyncResult {
   courses: number
   assignments: number
-  xp: number
   submissions: number
 }
 
 /**
  * Pull everything from Canvas through the CampusFlow server and merge it in. Student-owned fields
- * are never overwritten. Work newly submitted on Canvas earns XP.
+ * are never overwritten. Work newly turned in on Canvas goes on the list to cross off for XP.
  */
 export async function syncCanvas(opts: { silent?: boolean; account?: { userName: string; baseHost: string } } = {}): Promise<SyncResult | null> {
   if (useCanvasSync.getState().syncing) return null
@@ -38,17 +37,15 @@ export async function syncCanvas(opts: { silent?: boolean; account?: { userName:
     const mapped = await canvasApi.fetchData()
     const prefs = useStore.getState().prefs
     const account = opts.account ?? { userName: prefs.canvasUser ?? 'Canvas user', baseHost: prefs.canvasHost ?? '' }
-    const { events, courses, assignments } = useStore.getState().applyCanvasSync(mapped, account)
+    const { turnedIn, courses, assignments } = useStore.getState().applyCanvasSync(mapped, account)
     useCanvasSync.setState({ syncing: false, needsReconnect: false })
-    const xp = events.reduce((s, e) => s + e.amount, 0)
-    if (events.length) {
-      celebrateCompletion(document.getElementById('canvas-sync-button'), xp)
-      toast(`+${xp} XP for ${events.length} thing${events.length === 1 ? '' : 's'} you submitted on Canvas`, 'success')
-    } else if (!opts.silent) {
+    // Newly turned-in work opens the "Good job!" list (see TurnedInDialog), where it's crossed off for XP.
+    if (turnedIn.length) sfx.quest()
+    else if (!opts.silent) {
       sfx.tap()
       toast(tr('Synced with Canvas'), 'success')
     }
-    return { courses, assignments, xp, submissions: events.length }
+    return { courses, assignments, submissions: turnedIn.length }
   } catch (e) {
     const err = e as CanvasError
     const needsReconnect = err.status === 401

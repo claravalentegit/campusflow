@@ -67,6 +67,8 @@ export interface Course {
   source: RecordSource
   canvasId: string | null
   createdAt: ISODateTime
+  /** The grade exactly as Canvas shows it (current grading period when the school uses quarters). */
+  canvasScore?: { percent: number | null; letter: string | null; period: string | null } | null
 }
 
 export interface Announcement {
@@ -344,6 +346,10 @@ export interface Preferences {
   familyGoals: import('./goals').RewardGoal[]
   /** Reward goals already celebrated as reached. */
   goalsCelebrated: string[]
+  /** Work turned in on Canvas, waiting to be crossed off on the "Good job!" list. */
+  toClaim: Array<{ id: ID; at: ISODateTime }>
+  /** The one-time catch-up of turned-in work that never earned XP has run. */
+  turnedInRecovered: boolean
   /** App language. English by default. */
   language: 'en' | 'es' | 'pt'
 }

@@ -28,6 +28,11 @@ import { deleteStoredFile } from './fileStore'
 import { toast } from './ui'
 import { tr } from '@/i18n/core'
 
+/** Canvas work turned in within this window counts as new when it shows up in a sync. */
+const TURNED_IN_WINDOW_MS = 14 * 86_400_000
+/** The one-time catch-up looks back this far for turned-in work that never earned XP. */
+const RECOVERY_WINDOW_MS = 21 * 86_400_000
+
 export const DEFAULT_PREFS: Preferences = {
   displayName: 'Alex',
   theme: 'system',
@@ -52,6 +57,8 @@ export const DEFAULT_PREFS: Preferences = {
   familySharing: false,
   planDone: [],
   language: 'en',
+  toClaim: [],
+  turnedInRecovered: false,
   familyGoals: [],
   goalsCelebrated: [],
 }
@@ -135,7 +142,11 @@ interface Actions {
   resetDemoData: () => void
   startEmpty: () => void
   /** Merge a Canvas sync. Returns XP events for work newly submitted on Canvas since connecting. */
-  applyCanvasSync: (mapped: CanvasMapped, account: { userName: string; baseHost: string }) => { events: XpEvent[]; courses: number; assignments: number }
+  applyCanvasSync: (mapped: CanvasMapped, account: { userName: string; baseHost: string }) => { turnedIn: string[]; courses: number; assignments: number }
+  /** Cross off work you turned in on Canvas: earns its XP. Returns the XP events. */
+  claimTurnedIn: (ids: string[]) => XpEvent[]
+  /** Once: find Canvas work turned in lately that never earned XP, and list it to cross off. */
+  recoverTurnedIn: () => number
   disconnectCanvas: (removeData: boolean) => void
 }
 
@@ -433,21 +444,29 @@ export const useStore = create<Store>()(
         // Skipped assignments stay out, however often Canvas sends them.
         const skippedIds = new Set(s.prefs.skipped.map((x) => x.id))
         const merged = mergeCanvasData(base, { ...mapped, assignments: mapped.assignments.filter((a) => !skippedIds.has(a.id)) })
-        // Work you submitted on Canvas after connecting earns XP, as if you checked it off here.
+        // Work newly turned in on Canvas goes on the "Good job!" list, to cross off for XP.
+        // Not on the first connection (that's history), and not old work that just showed up.
+        const knownCourses = new Set(base.courses.map((c) => c.id))
+        const recent = Date.now() - TURNED_IN_WINDOW_MS
         const rewarded = new Set(merged.xpEvents.filter((e) => e.kind === 'assignment').map((e) => e.refId))
-        const events: XpEvent[] = []
-        for (const a of merged.assignments) {
-          const sub = a.canvasSubmission
-          if (a.source !== 'canvas' || !sub?.submittedAt || wasDone.has(a.id) || rewarded.has(a.id) || !isAssignmentDone(a)) continue
-          if (sub.submittedAt < connectedAt) continue
-          events.push(assignmentEvent(a, merged.tasks, new Date(sub.submittedAt), newId('xp')))
+        const listed = new Set(s.prefs.toClaim.map((x) => x.id))
+        const turnedIn: Array<{ id: string; at: string }> = []
+        if (s.prefs.dataMode === 'canvas') {
+          for (const a of merged.assignments) {
+            const sub = a.canvasSubmission
+            if (a.source !== 'canvas' || !sub || !isAssignmentDone(a) || wasDone.has(a.id) || rewarded.has(a.id) || listed.has(a.id) || !knownCourses.has(a.courseId)) continue
+            if (sub.submittedAt && new Date(sub.submittedAt).getTime() < recent) continue
+            turnedIn.push({ id: a.id, at: sub.submittedAt ?? nowIso })
+          }
         }
         const fresh = s.prefs.dataMode !== 'canvas'
         set({
           ...merged,
-          xpEvents: [...merged.xpEvents, ...events],
           prefs: {
             ...s.prefs,
+            toClaim: [...s.prefs.toClaim, ...turnedIn],
+            // A brand-new connection starts fresh; only existing users get the one-time catch-up.
+            turnedInRecovered: s.prefs.turnedInRecovered || fresh,
             dataMode: 'canvas',
             lastCanvasSyncAt: nowIso,
             canvasConnectedAt: connectedAt,
@@ -458,7 +477,34 @@ export const useStore = create<Store>()(
             ...(fresh && s.prefs.dataMode === 'demo' ? { lastSeenLevel: 1, questCelebratedOn: null } : {}),
           },
         })
-        return { events, courses: mapped.courses.length, assignments: mapped.assignments.length }
+        return { turnedIn: turnedIn.map((x) => x.id), courses: mapped.courses.length, assignments: mapped.assignments.length }
+      },
+      claimTurnedIn: (ids) => {
+        const s = get()
+        const want = new Set(ids)
+        const rewarded = new Set(s.xpEvents.filter((e) => e.kind === 'assignment').map((e) => e.refId))
+        const events: XpEvent[] = []
+        for (const x of s.prefs.toClaim) {
+          const a = s.assignments.find((y) => y.id === x.id)
+          if (!want.has(x.id) || !a || rewarded.has(a.id)) continue
+          events.push(assignmentEvent(a, s.tasks, new Date(x.at), newId('xp')))
+        }
+        set({ xpEvents: [...s.xpEvents, ...events], prefs: { ...s.prefs, toClaim: s.prefs.toClaim.filter((x) => !want.has(x.id)) } })
+        return events
+      },
+      recoverTurnedIn: () => {
+        const s = get()
+        if (s.prefs.turnedInRecovered || s.prefs.dataMode !== 'canvas') return 0
+        const recent = Date.now() - RECOVERY_WINDOW_MS
+        const rewarded = new Set(s.xpEvents.filter((e) => e.kind === 'assignment').map((e) => e.refId))
+        const listed = new Set(s.prefs.toClaim.map((x) => x.id))
+        const found = s.assignments
+          .filter((a) => a.source === 'canvas' && a.canvasSubmission && isAssignmentDone(a) && a.status !== 'completed' && a.status !== 'submitted' && !rewarded.has(a.id) && !listed.has(a.id))
+          .filter((a) => !a.canvasSubmission!.submittedAt || new Date(a.canvasSubmission!.submittedAt).getTime() >= recent)
+          .filter((a) => a.canvasSubmission!.submittedAt || (a.dueAt && new Date(a.dueAt).getTime() >= recent))
+          .map((a) => ({ id: a.id, at: a.canvasSubmission!.submittedAt ?? now() }))
+        set({ prefs: { ...s.prefs, turnedInRecovered: true, toClaim: [...s.prefs.toClaim, ...found] } })
+        return found.length
       },
       disconnectCanvas: (removeData) =>
         set((s) => {

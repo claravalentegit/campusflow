@@ -159,7 +159,7 @@ function CourseCard({ c, index, open, onToggle }: { c: Course; index: number; op
   const guide = useGuide().find((g) => g.course.id === c.id)
   const target = c.targetGrade != null && pct != null ? requiredForTarget(summary, c.targetGrade) : null
   const latest = announcements.filter((n) => n.courseId === c.id).sort((x, y) => y.postedAt.localeCompare(x.postedAt))[0]
-  const source = summary.sources.includes('canvas') ? t('from Canvas') : summary.sources.includes('demo') ? t('demo grades') : summary.sources.length ? t('grades you entered') : null
+  const source = c.canvasScore?.percent != null ? [t('from Canvas'), c.canvasScore.period].filter(Boolean).join(' · ') : summary.sources.includes('canvas') ? t('from Canvas') : summary.sources.includes('demo') ? t('demo grades') : summary.sources.length ? t('grades you entered') : null
   const canvasUrl = c.canvasId && canvasHost ? `https://${canvasHost}/courses/${c.canvasId}` : null
   const tone = pct == null ? 'var(--surface-3)' : pct >= 90 ? 'var(--success-bright)' : pct >= 80 ? courseColor(c.color) : pct >= 70 ? 'var(--gold)' : 'var(--danger)'
   const Icon = COURSE_ICON[c.icon]
@@ -184,7 +184,7 @@ function CourseCard({ c, index, open, onToggle }: { c: Course; index: number; op
           </span>
         </button>
         <Ring value={pct == null ? 0 : Math.min(1, pct / 100)} size={54} stroke={9} track="var(--surface-3)" color={tone}>
-          <span className="text-sm leading-none font-black">{pct == null ? '–' : letterGrade(pct)}</span>
+          <span className="text-sm leading-none font-black">{pct == null ? '–' : (c.canvasScore?.letter ?? letterGrade(pct))}</span>
         </Ring>
         <ChevronDown className={cn('relative size-5 shrink-0 text-fg-3 transition-transform', open && 'rotate-180')} aria-hidden />
       </div>
@@ -195,7 +195,7 @@ function CourseCard({ c, index, open, onToggle }: { c: Course; index: number; op
             <div className="flex flex-col gap-4 border-t-2 border-dashed border-line p-4 sm:px-5" data-testid="course-details">
               <section aria-label={t('Grade')}>
                 <p className="flex flex-wrap items-baseline gap-x-2">
-                  <span className="text-2xl font-black">{pct == null ? t('No grades yet') : `${pct.toFixed(1)}% · ${letterGrade(pct)}`}</span>
+                  <span className="text-2xl font-black">{pct == null ? t('No grades yet') : `${pct.toFixed(1)}% · ${c.canvasScore?.letter ?? letterGrade(pct)}`}</span>
                   {source && <span className="text-xs font-bold text-fg-3">{source}</span>}
                 </p>
                 {[c.code, c.instructor].some(Boolean) && <p className="text-sm font-bold text-fg-3">{[c.code, c.instructor].filter(Boolean).join(' · ')}</p>}

@@ -10,6 +10,16 @@ export interface CanvasRawCourse {
   public_description?: string | null
   term?: { name?: string } | null
   teachers?: Array<{ display_name: string }>
+  /** With include[]=total_scores / current_grading_period_scores: the student's own grade. */
+  enrollments?: Array<{
+    type?: string
+    computed_current_score?: number | null
+    computed_current_grade?: string | null
+    current_period_computed_current_score?: number | null
+    current_period_computed_current_grade?: string | null
+    current_grading_period_title?: string | null
+    multiple_grading_periods_enabled?: boolean
+  }>
 }
 
 export interface CanvasRawSubmission {

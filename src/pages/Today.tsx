@@ -17,6 +17,7 @@ import { CourseDot } from '@/components/course'
 import { CheckButton, LevelBadge, XpChip } from '@/components/game/GameUI'
 import { PetCard } from '@/components/game/PetCard'
 import { RewardGoals } from '@/components/game/RewardGoals'
+import { TurnedInBanner } from '@/components/TurnedInDialog'
 import { GradeGuideCard, HelpButton, useGuide } from '@/components/GradeGuide'
 import { AssignmentDetails, TaskDetails } from '@/components/QuestDetails'
 import { LockTag } from '@/components/LockTag'
@@ -129,6 +130,7 @@ export function Today() {
         </div>
       </div>
 
+      <TurnedInBanner />
       <PetCard />
       <RewardGoals />
 

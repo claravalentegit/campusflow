@@ -10,13 +10,23 @@ import type {
   ModuleItemType,
 } from '@/domain/types'
 import { COURSE_COLORS } from '@/domain/types'
-import type { CanvasRawAssignment, CanvasRawModuleItem, CanvasRawSnapshot } from './types'
+import type { CanvasRawAssignment, CanvasRawCourse, CanvasRawModuleItem, CanvasRawSnapshot } from './types'
 
 export type CanvasMapped = Pick<AppData, 'courses' | 'assignments' | 'modules' | 'announcements' | 'events' | 'grades'>
 
 const ENTITIES: Record<string, string> = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'", '&nbsp;': ' ' }
 
 /** Convert Canvas HTML to readable plain text. Content is never injected as HTML. */
+/** The student's grade as Canvas shows it: this grading period's when the school uses them, else the total. */
+function canvasScoreOf(c: CanvasRawCourse): Course['canvasScore'] {
+  const e = c.enrollments?.find((x) => !x.type || x.type === 'student' || x.type === 'StudentEnrollment')
+  if (!e) return null
+  const period = e.multiple_grading_periods_enabled && e.current_period_computed_current_score != null
+  const percent = period ? e.current_period_computed_current_score! : (e.computed_current_score ?? null)
+  if (percent == null) return null
+  return { percent, letter: (period ? e.current_period_computed_current_grade : e.computed_current_grade) ?? null, period: period ? (e.current_grading_period_title ?? null) : null }
+}
+
 export function htmlToText(html: string | null | undefined): string {
   if (!html) return ''
   return html
@@ -95,6 +105,7 @@ export function mapCanvasSnapshot(raw: CanvasRawSnapshot): CanvasMapped {
       source: 'canvas',
       canvasId: String(c.id),
       createdAt: syncedAt,
+      canvasScore: canvasScoreOf(c),
     }
     out.courses.push(course)
 

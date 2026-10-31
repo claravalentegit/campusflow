@@ -9,8 +9,11 @@ export function isAssignmentDone(a: Assignment): boolean {
   return a.canvasSubmission != null && OFFICIALLY_SUBMITTED.has(a.canvasSubmission.state)
 }
 
-/** Canvas types that are turned in somewhere else (on paper, in class), so Canvas never shows a submission. */
-const OFFLINE_TYPES = new Set(['none', 'on_paper', 'not_graded', 'wiki_page'])
+/**
+ * Canvas types Canvas can't confirm: turned in on paper or in class, or done in an outside tool
+ * (Savvas, Edpuzzle…) that often never reports a submission back. These can be checked off by hand.
+ */
+const OFFLINE_TYPES = new Set(['none', 'on_paper', 'not_graded', 'wiki_page', 'external_tool'])
 
 /**
  * A real Canvas assignment that has to be turned in on Canvas: it can only be checked off once Canvas

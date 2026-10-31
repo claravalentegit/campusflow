@@ -87,7 +87,8 @@ async function optional<T>(p: Promise<T[]>): Promise<T[]> {
 export async function fetchSnapshot(config: CanvasConfig) {
   const courses = await getAll<RawCourse>(
     config,
-    '/courses?enrollment_state=active&include[]=term&include[]=teachers&include[]=public_description',
+    // total_scores and current_grading_period_scores: the grade exactly as Canvas shows it to the student.
+    '/courses?enrollment_state=active&include[]=term&include[]=teachers&include[]=public_description&include[]=total_scores&include[]=current_grading_period_scores',
   )
   const now = new Date()
   const start = new Date(now.getTime() - 30 * 86400000).toISOString()

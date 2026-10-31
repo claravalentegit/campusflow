@@ -28,6 +28,7 @@ export function mergeCanvasData(data: AppData, incoming: CanvasMapped): AppData 
       instructor: next.instructor,
       description: next.description || prev.description,
       term: next.term,
+      canvasScore: next.canvasScore,
       gradeCategories: prev.gradeCategories.length ? prev.gradeCategories : next.gradeCategories,
     })),
     assignments: upsert(data.assignments, incoming.assignments, (prev, next) => ({

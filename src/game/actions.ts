@@ -21,17 +21,18 @@ export function skipAssignment(a: Assignment) {
 }
 
 /**
- * Not turned in on Canvas yet: say so, and check Canvas once more in case it was just submitted
- * (if it was, the sync checks it off and gives the XP).
+ * Not turned in on Canvas yet: say so, and check Canvas once more in case it was just submitted.
  */
 function refuseUntilSubmitted(a: Assignment) {
   sfx.nope()
-  toast(tr('Not turned in on Canvas yet. Turn it in on Canvas first, then it checks off by itself.'), 'error', a.htmlUrl ? { label: tr('Open in Canvas'), run: () => window.open(a.htmlUrl!, '_blank', 'noopener') } : undefined)
-  void syncCanvas({ silent: true }).then((r) => {
+  const explain = () => toast(tr('Not turned in on Canvas yet. Turn it in on Canvas first, then you can cross it off.'), 'error', a.htmlUrl ? { label: tr('Open in Canvas'), run: () => window.open(a.htmlUrl!, '_blank', 'noopener') } : undefined)
+  // Ask Canvas first: if it was just turned in, the sync opens the "Good job!" list instead.
+  void syncCanvas({ silent: true }).then(() => {
     const now = useStore.getState().assignments.find((x) => x.id === a.id)
-    if (r && now && isAssignmentDone(now)) toast(tr('Canvas shows “{title}” as turned in. Checked off!', { title: a.title }), 'success')
+    if (!now || !isAssignmentDone(now)) explain()
   })
 }
+
 
 /**
  * Complete (or reopen) an assignment with the full reward treatment and an Undo.

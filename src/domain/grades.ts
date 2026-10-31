@@ -41,7 +41,20 @@ export function letterGrade(pct: number): string {
   return 'F'
 }
 
+/**
+ * The course grade. When Canvas reports the grade itself (its own math, including the current grading
+ * period, drop rules and missing-work policies), that number is used, so it always matches Canvas.
+ * Otherwise it's calculated from the grades and weights (see calculateCourseGrades).
+ */
 export function summarizeCourseGrades(course: Course, grades: GradeRecord[], assignments: Assignment[]): CourseGradeSummary {
+  const calc = calculateCourseGrades(course, grades, assignments)
+  const official = course.canvasScore?.percent
+  if (official == null) return calc
+  return { ...calc, currentPercent: official, sources: calc.sources.includes('canvas') ? calc.sources : [...calc.sources, 'canvas'] }
+}
+
+/** Our own calculation from grades and category weights. Used for what-if estimates. */
+export function calculateCourseGrades(course: Course, grades: GradeRecord[], assignments: Assignment[]): CourseGradeSummary {
   const records = grades.filter((g) => g.courseId === course.id && g.outOf > 0)
   const gradedAssignmentIds = new Set(records.map((g) => g.assignmentId).filter(Boolean))
   const ungraded = assignments.filter((a) => a.courseId === course.id && !gradedAssignmentIds.has(a.id))

@@ -1,7 +1,7 @@
 import { differenceInHours } from 'date-fns'
 import { isAssignmentDone, isAssignmentOverdue, lockState } from './assignments'
 import { parseInstant } from './dates'
-import { summarizeCourseGrades } from './grades'
+import { calculateCourseGrades, summarizeCourseGrades } from './grades'
 import type { Assignment, Course, GradeRecord } from './types'
 
 /**
@@ -92,10 +92,16 @@ export function buildGuide(courses: Course[], assignments: Assignment[], grades:
 
       const summary = summarizeCourseGrades(course, myGrades, mine)
       const percent = summary.currentPercent
+      // What-ifs use our own math, shifted so "now" lines up with the grade Canvas shows.
+      const ours = calculateCourseGrades(course, myGrades, mine).currentPercent
+      const shift = percent != null && ours != null ? percent - ours : 0
+      const whatIf = (g: GradeRecord[]) => {
+        const p = calculateCourseGrades(course, g, mine).currentPercent
+        return p == null ? null : Math.max(0, p + shift)
+      }
       const missingAll = [...turnIn.filter((t) => t.late).map((t) => t.a), ...closed]
-      const ifZeros = percent == null || !missingAll.length ? null : summarizeCourseGrades(course, withScores(course, myGrades, missingAll, () => 0), mine).currentPercent
-      const ifTurnedIn =
-        percent == null || !turnIn.length ? null : summarizeCourseGrades(course, withScores(course, withScores(course, myGrades, closed, () => 0), turnIn.map((t) => t.a), (a) => a.pointsPossible ?? 0), mine).currentPercent
+      const ifZeros = percent == null || !missingAll.length ? null : whatIf(withScores(course, myGrades, missingAll, () => 0))
+      const ifTurnedIn = percent == null || !turnIn.length ? null : whatIf(withScores(course, withScores(course, myGrades, closed, () => 0), turnIn.map((t) => t.a), (a) => a.pointsPossible ?? 0))
       const low = summary.method === 'weighted' ? summary.categories.filter((k) => k.percent != null && k.percent < 75 && k.weight >= 25).sort((a, b) => b.weight - a.weight)[0] : undefined
       const focus = low ? { name: low.name, weight: low.weight, percent: low.percent! } : null
       return { course, percent, ifZeros, ifTurnedIn, turnIn, closed, focus, needsHelp: turnIn.length > 0 || closed.length > 0 || !!focus }
