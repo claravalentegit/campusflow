@@ -33,6 +33,8 @@ export function startMockCanvas(port = 8898) {
       { id: 9102, name: 'Discussion: Social Norms', description: null, due_at: day(-1, 23, 59), lock_at: day(0, 0, 0), locked_for_user: true, lock_explanation: 'This discussion was locked Midnight.', points_possible: 5, submission_types: ['discussion_topic'], assignment_group_id: 3, submission: { workflow_state: 'unsubmitted', submitted_at: null, missing: true } },
     ],
     503: [
+      // The teacher typed a 0 for work that was never turned in: Canvas calls it "graded", but it's still open.
+      { id: 9202, name: 'Pre-lab Quiz 4', description: null, due_at: day(-2, 23, 59), points_possible: 10, submission_types: ['online_upload'], assignment_group_id: 4, submission: { workflow_state: 'graded', submitted_at: null, score: 0, missing: false } },
       { id: 9201, name: 'Lab Report 3: Distillation', description: '<p>Full report with error analysis.</p>', due_at: day(4, 17, 0), points_possible: 40, submission_types: ['online_upload'], assignment_group_id: 4, submission: sub('unsubmitted') },
     ],
   }
@@ -74,6 +76,12 @@ export function startMockCanvas(port = 8898) {
       const id = /course_(\d+)/.exec(url.search)?.[1]
       return send(res, 200, announcements[id] ?? [])
     }
+    if (p === '/api/v1/planner/items')
+      return send(res, 200, [
+        // Already an assignment (skipped) and an ungraded survey that only shows up in Canvas's To Do.
+        { course_id: 502, plannable_id: 9101, plannable_type: 'assignment', plannable_date: day(0, 23, 59), html_url: '/courses/502/assignments/9101', plannable: { id: 9101, title: 'Reading Response: Durkheim' }, submissions: { submitted: false } },
+        { course_id: 502, plannable_id: 7001, plannable_type: 'quiz', plannable_date: day(2, 23, 59), html_url: '/courses/502/quizzes/7001', plannable: { id: 7001, title: 'Survey: Study habits', due_at: day(2, 23, 59) }, submissions: { submitted: false, missing: false } },
+      ])
     if (p === '/api/v1/calendar_events') return send(res, 200, [{ id: 'assignment_9003', title: 'Midterm Exam', start_at: day(9, 10, 0), end_at: day(9, 11, 30), context_code: 'course_501', assignment: { id: 9003 } }])
     return send(res, 404, { errors: [{ message: 'not found' }] })
   })

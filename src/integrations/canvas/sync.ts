@@ -37,7 +37,8 @@ export async function syncCanvas(opts: { silent?: boolean; account?: { userName:
     const mapped = await canvasApi.fetchData()
     const prefs = useStore.getState().prefs
     const account = opts.account ?? { userName: prefs.canvasUser ?? 'Canvas user', baseHost: prefs.canvasHost ?? '' }
-    const { turnedIn, courses, assignments } = useStore.getState().applyCanvasSync(mapped, account)
+    const { turnedIn, reopened, courses, assignments } = useStore.getState().applyCanvasSync(mapped, account)
+    if (reopened) toast(reopened === 1 ? tr('Fixed: 1 assignment wasn’t really turned in on Canvas. It’s back on your list.') : tr('Fixed: {n} assignments weren’t really turned in on Canvas. They’re back on your list.', { n: reopened }), 'info')
     useCanvasSync.setState({ syncing: false, needsReconnect: false })
     // Newly turned-in work opens the "Good job!" list (see TurnedInDialog), where it's crossed off for XP.
     if (turnedIn.length) sfx.quest()

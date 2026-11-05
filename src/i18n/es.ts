@@ -257,6 +257,8 @@ export const ES: Record<string, string> = {
   "Finished": "Terminadas",
   "Finished their weekly guide to support you": "Terminó su guía semanal para apoyarte",
   "First Step": "Primer paso",
+  "Fixed: 1 assignment wasn’t really turned in on Canvas. It’s back on your list.": "Arreglado: 1 tarea no estaba entregada de verdad en Canvas. Volvió a tu lista.",
+  "Fixed: {n} assignments weren’t really turned in on Canvas. They’re back on your list.": "Arreglado: {n} tareas no estaban entregadas de verdad en Canvas. Volvieron a tu lista.",
   "Focus 25 min": "Concentrarme 25 min",
   "Focus Knight": "Caballero de la concentración",
   "Focus on": "Concentrarme en",

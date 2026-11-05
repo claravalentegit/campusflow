@@ -28,6 +28,8 @@ export interface CanvasRawSubmission {
   graded_at?: string | null
   score?: number | null
   missing?: boolean
+  excused?: boolean | null
+  late_policy_status?: string | null
 }
 
 export interface CanvasRawAssignment {
@@ -106,6 +108,21 @@ export interface CanvasRawSnapshot {
   fetchedAt: string
   courses: CanvasRawCourseBundle[]
   events: CanvasRawCalendarEvent[]
+  /** The student's Canvas To Do / planner: also ungraded quizzes, discussions and pages with a to-do date. */
+  planner?: CanvasRawPlannerItem[]
+}
+
+/** GET /api/v1/planner/items (what Canvas shows in the student's To Do and planner). */
+export interface CanvasRawPlannerItem {
+  course_id?: number | null
+  plannable_id: number
+  plannable_type: 'assignment' | 'quiz' | 'discussion_topic' | 'wiki_page' | 'planner_note' | 'calendar_event' | 'assessment_request' | string
+  plannable_date?: string | null
+  html_url?: string | null
+  plannable: { id: number; title: string; points_possible?: number | null; due_at?: string | null; todo_date?: string | null; assignment_id?: number | null }
+  /** false when Canvas doesn't track submissions for it. */
+  submissions?: false | { submitted?: boolean; excused?: boolean; graded?: boolean; missing?: boolean; late?: boolean }
+  planner_override?: { marked_complete?: boolean } | null
 }
 
 export type CanvasStatus =

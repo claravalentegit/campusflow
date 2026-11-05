@@ -108,5 +108,12 @@ export async function fetchSnapshot(config: CanvasConfig) {
   const events = courses.length
     ? await optional(getAll(config, `/calendar_events?type=event&${contextCodes}&start_date=${start}&end_date=${end}`, 3))
     : []
-  return { fetchedAt: now.toISOString(), courses: bundles, events }
+  // The student's To Do and planner: also lists ungraded quizzes, discussions and pages with a to-do date.
+  const plannerStart = new Date(now.getTime() - 60 * 86400000).toISOString()
+  // Extra information: if it fails, the sync still works without it.
+  const planner = (await getAll<{ html_url?: string | null }>(config, `/planner/items?start_date=${plannerStart}&end_date=${end}`, 5).catch(() => [])).map((p) => ({
+    ...p,
+    html_url: p.html_url ? new URL(p.html_url, config.baseUrl).toString() : null,
+  }))
+  return { fetchedAt: now.toISOString(), courses: bundles, events, planner }
 }

@@ -70,3 +70,21 @@ describe('Canvas sync: turned-in work', () => {
     expect(useStore.getState().xpEvents.filter((e) => e.refId === 'cv_asg_10')).toHaveLength(1)
   })
 })
+
+describe('Canvas sync: fixing work wrongly counted as done', () => {
+  beforeEach(() => useStore.getState().startEmpty())
+  it('reopens it and takes back XP it gave without being checked off', () => {
+    useStore.getState().applyCanvasSync(mapCanvasSnapshot(snapshot(null)), account)
+    // An older version counted Homework 6 as done and paid XP for it.
+    useStore.setState((s) => ({ xpEvents: [...s.xpEvents, { id: 'x1', at: new Date().toISOString(), amount: 30, kind: 'assignment', refId: 'cv_asg_10' }] }))
+    const r = useStore.getState().applyCanvasSync(mapCanvasSnapshot(snapshot(null)), account)
+    expect(r.reopened).toBe(1)
+    expect(useStore.getState().xpEvents).toHaveLength(0)
+  })
+  it('keeps XP for work checked off by hand', () => {
+    useStore.getState().applyCanvasSync(mapCanvasSnapshot(snapshot(null)), account)
+    useStore.getState().setAssignmentStatus('cv_asg_10', 'completed')
+    expect(useStore.getState().applyCanvasSync(mapCanvasSnapshot(snapshot(null)), account).reopened).toBe(0)
+    expect(useStore.getState().xpEvents).toHaveLength(1)
+  })
+})

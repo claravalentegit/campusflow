@@ -433,11 +433,14 @@ await test('Canvas: connect with an access token, import classes, and sync on To
   const done = page.getByTestId('connect-done')
   await done.getByText('You’re connected, Jordan!').waitFor()
   await page.waitForTimeout(900)
-  assert((await done.innerText()).includes('3') && (await done.innerText()).includes('6'), `unexpected counts: ${await done.innerText()}`)
+  assert((await done.innerText()).includes('3') && (await done.innerText()).includes('8'), `unexpected counts: ${await done.innerText()}`)
   await page.getByRole('button', { name: 'Let’s go' }).click()
   await ready(page)
   await page.getByText('Homework 6: Eigenvalues').waitFor()
   await page.getByText(/Synced with Canvas/).waitFor()
+  // A 0 the teacher typed in isn't "done", and Canvas To Do items that aren't assignments show up too.
+  await page.getByText('Pre-lab Quiz 4').first().waitFor()
+  await page.getByText('Survey: Study habits').first().waitFor()
   assert(!(await page.getByText('Calculus III').count()), 'demo data still present')
   // The late discussion is closed on Canvas: the Grade guide suggests asking the teacher to reopen it.
   const guide = page.getByRole('region', { name: 'Grade guide' })
@@ -467,7 +470,6 @@ await test('Canvas: connect with an access token, import classes, and sync on To
   await dialog(page).getByRole('heading', { name: 'All crossed off!' }).waitFor()
   await page.waitForFunction((b) => Number(document.getElementById('xp-target')?.innerText.replace(/[^\d]/g, '')) > b, xpBefore, { timeout: 5000 })
   await dialog(page).getByRole('button', { name: 'Awesome!' }).click()
-  await fetch(`${MOCK}/__test/unsubmit/9201`, { method: 'POST' })
   await dismissCelebrations(page)
   // Submitting on Canvas earns XP on the next sync.
   const before = await xp(page)
@@ -494,6 +496,9 @@ await test('Canvas: connect with an access token, import classes, and sync on To
   await page.getByTestId('canvas-status').getByText('Not connected').waitFor()
   const status = await page.evaluate(() => fetch('/api/canvas/status').then((r) => r.json()))
   assert(status.state === 'signed_out', `server still signed in: ${JSON.stringify(status)}`)
+  // Leave the mock Canvas as it was for later tests.
+  await fetch(`${MOCK}/__test/unsubmit/9201`, { method: 'POST' })
+  await fetch(`${MOCK}/__test/unsubmit/9101`, { method: 'POST' })
 }, undefined, { fresh: true })
 
 await test('Skip: an assignment leaves CampusFlow, Undo brings it back, and Settings can restore it', async (page) => {

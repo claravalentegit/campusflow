@@ -142,7 +142,7 @@ interface Actions {
   resetDemoData: () => void
   startEmpty: () => void
   /** Merge a Canvas sync. Returns XP events for work newly submitted on Canvas since connecting. */
-  applyCanvasSync: (mapped: CanvasMapped, account: { userName: string; baseHost: string }) => { turnedIn: string[]; courses: number; assignments: number }
+  applyCanvasSync: (mapped: CanvasMapped, account: { userName: string; baseHost: string }) => { turnedIn: string[]; reopened: number; courses: number; assignments: number }
   /** Cross off work you turned in on Canvas: earns its XP. Returns the XP events. */
   claimTurnedIn: (ids: string[]) => XpEvent[]
   /** Once: find Canvas work turned in lately that never earned XP, and list it to cross off. */
@@ -444,6 +444,12 @@ export const useStore = create<Store>()(
         // Skipped assignments stay out, however often Canvas sends them.
         const skippedIds = new Set(s.prefs.skipped.map((x) => x.id))
         const merged = mergeCanvasData(base, { ...mapped, assignments: mapped.assignments.filter((a) => !skippedIds.has(a.id)) })
+        // Canvas work that isn't really turned in (an older version counted a typed-in 0 as done):
+        // it's open again, and XP it gave without being checked off here is taken back.
+        const notDone = new Set(merged.assignments.filter((a) => a.source === 'canvas' && !isAssignmentDone(a)).map((a) => a.id))
+        const wrongXp = merged.xpEvents.filter((e) => e.kind === 'assignment' && notDone.has(e.refId))
+        merged.xpEvents = merged.xpEvents.filter((e) => !wrongXp.includes(e))
+        const reopened = new Set(wrongXp.map((e) => e.refId)).size
         // Work newly turned in on Canvas goes on the "Good job!" list, to cross off for XP.
         // Not on the first connection (that's history), and not old work that just showed up.
         const knownCourses = new Set(base.courses.map((c) => c.id))
@@ -464,7 +470,7 @@ export const useStore = create<Store>()(
           ...merged,
           prefs: {
             ...s.prefs,
-            toClaim: [...s.prefs.toClaim, ...turnedIn],
+            toClaim: [...s.prefs.toClaim.filter((x) => !notDone.has(x.id)), ...turnedIn],
             // A brand-new connection starts fresh; only existing users get the one-time catch-up.
             turnedInRecovered: s.prefs.turnedInRecovered || fresh,
             dataMode: 'canvas',
@@ -477,7 +483,7 @@ export const useStore = create<Store>()(
             ...(fresh && s.prefs.dataMode === 'demo' ? { lastSeenLevel: 1, questCelebratedOn: null } : {}),
           },
         })
-        return { turnedIn: turnedIn.map((x) => x.id), courses: mapped.courses.length, assignments: mapped.assignments.length }
+        return { turnedIn: turnedIn.map((x) => x.id), reopened, courses: mapped.courses.length, assignments: mapped.assignments.length }
       },
       claimTurnedIn: (ids) => {
         const s = get()
@@ -486,7 +492,7 @@ export const useStore = create<Store>()(
         const events: XpEvent[] = []
         for (const x of s.prefs.toClaim) {
           const a = s.assignments.find((y) => y.id === x.id)
-          if (!want.has(x.id) || !a || rewarded.has(a.id)) continue
+          if (!want.has(x.id) || !a || rewarded.has(a.id) || !isAssignmentDone(a)) continue
           events.push(assignmentEvent(a, s.tasks, new Date(x.at), newId('xp')))
         }
         set({ xpEvents: [...s.xpEvents, ...events], prefs: { ...s.prefs, toClaim: s.prefs.toClaim.filter((x) => !want.has(x.id)) } })

@@ -10,7 +10,7 @@ import type {
   ModuleItemType,
 } from '@/domain/types'
 import { COURSE_COLORS } from '@/domain/types'
-import type { CanvasRawAssignment, CanvasRawCourse, CanvasRawModuleItem, CanvasRawSnapshot } from './types'
+import type { CanvasRawAssignment, CanvasRawCourse, CanvasRawModuleItem, CanvasRawSnapshot, CanvasRawSubmission } from './types'
 
 export type CanvasMapped = Pick<AppData, 'courses' | 'assignments' | 'modules' | 'announcements' | 'events' | 'grades'>
 
@@ -75,6 +75,19 @@ const MODULE_ITEM_TYPE: Record<CanvasRawModuleItem['type'], ModuleItemType> = {
 }
 
 /** Pure mapping from Canvas API shapes into CampusFlow records (`source: 'canvas'`). */
+/**
+ * Is it really turned in? Canvas says "graded" also when a teacher typed a 0 for work that was never
+ * turned in, so a grade alone doesn't mean done. Done = turned in (has a turn-in time), excused, or
+ * graded with points (work handed in on paper). A 0 with nothing turned in stays open, as missing.
+ */
+export function submissionState(sub: CanvasRawSubmission): NonNullable<Assignment['canvasSubmission']>['state'] {
+  if (sub.excused) return 'graded'
+  if (sub.submitted_at) return sub.workflow_state === 'unsubmitted' ? 'submitted' : sub.workflow_state
+  if (sub.missing || sub.late_policy_status === 'missing') return 'missing'
+  if (sub.workflow_state === 'graded' && (sub.score ?? 0) > 0) return 'graded'
+  return 'unsubmitted'
+}
+
 export function mapCanvasSnapshot(raw: CanvasRawSnapshot): CanvasMapped {
   const out: CanvasMapped = { courses: [], assignments: [], modules: [], announcements: [], events: [], grades: [] }
   const syncedAt = raw.fetchedAt
@@ -128,9 +141,7 @@ export function mapCanvasSnapshot(raw: CanvasRawSnapshot): CanvasMapped {
         pointsPossible: a.points_possible,
         gradeCategoryId: a.assignment_group_id && totalWeight > 0 ? canvasIdFor.group(a.assignment_group_id) : null,
         moduleId: null,
-        canvasSubmission: sub
-          ? { state: sub.missing && sub.workflow_state === 'unsubmitted' ? 'missing' : sub.workflow_state, submittedAt: sub.submitted_at, syncedAt, source: 'canvas' }
-          : null,
+        canvasSubmission: sub ? { state: submissionState(sub), submittedAt: sub.submitted_at, syncedAt, source: 'canvas' } : null,
         canvasSubmissionTypes: a.submission_types ?? null,
         source: 'canvas',
         canvasId: String(a.id),
@@ -200,6 +211,54 @@ export function mapCanvasSnapshot(raw: CanvasRawSnapshot): CanvasMapped {
       out.announcements.push(announcement)
     }
   })
+
+  // Canvas To Do items that aren't assignments: ungraded quizzes, surveys, discussions, pages with a
+  // to-do date. Without these, work Canvas lists as open would be missing here.
+  const have = new Set(out.assignments.map((a) => a.id))
+  for (const p of raw.planner ?? []) {
+    const courseId = p.course_id ? courseByCode.get(`course_${p.course_id}`) : undefined
+    if (!courseId || !['quiz', 'discussion_topic', 'wiki_page', 'assignment'].includes(p.plannable_type)) continue
+    const linked = p.plannable_type === 'assignment' ? p.plannable_id : p.plannable.assignment_id
+    if (linked) {
+      // Already imported as an assignment: the planner only adds "marked done" from Canvas's To Do.
+      const a = out.assignments.find((x) => x.id === canvasIdFor.assignment(linked))
+      if (a && p.planner_override?.marked_complete && a.canvasSubmission?.state !== 'missing') a.canvasSubmission = { state: 'submitted', submittedAt: a.canvasSubmission?.submittedAt ?? null, syncedAt, source: 'canvas' }
+      if (a || have.has(canvasIdFor.assignment(linked))) continue
+    }
+    const id = `cv_todo_${p.plannable_type}_${p.plannable_id}`
+    if (have.has(id)) continue
+    have.add(id)
+    const subs = p.submissions
+    const tracked = !!subs
+    const state: NonNullable<Assignment['canvasSubmission']>['state'] = subs && (subs.submitted || subs.excused) ? 'submitted' : subs && subs.missing ? 'missing' : p.planner_override?.marked_complete ? 'submitted' : 'unsubmitted'
+    out.assignments.push({
+      id,
+      courseId,
+      title: p.plannable.title,
+      description: '',
+      dueAt: p.plannable.due_at ?? p.plannable.todo_date ?? p.plannable_date ?? null,
+      priority: 'medium',
+      estimatedMinutes: null,
+      status: 'not_started',
+      type: p.plannable_type === 'quiz' ? 'quiz' : p.plannable_type === 'discussion_topic' ? 'discussion' : p.plannable_type === 'wiki_page' ? 'reading' : 'other',
+      submissionInstructions: '',
+      rubricNotes: '',
+      links: [],
+      personalNotes: '',
+      pointsPossible: p.plannable.points_possible ?? null,
+      gradeCategoryId: null,
+      moduleId: null,
+      canvasSubmission: { state, submittedAt: null, syncedAt, source: 'canvas' },
+      // Pages and anything Canvas doesn't track can be checked off by hand.
+      canvasSubmissionTypes: tracked ? [p.plannable_type === 'quiz' ? 'online_quiz' : p.plannable_type === 'discussion_topic' ? 'discussion_topic' : 'online_upload'] : ['none'],
+      source: 'canvas',
+      canvasId: null,
+      htmlUrl: p.html_url && /^https:\/\//.test(p.html_url) ? p.html_url : null,
+      completedAt: null,
+      createdAt: syncedAt,
+      updatedAt: syncedAt,
+    })
+  }
 
   for (const e of raw.events) {
     if (!e.start_at) continue
