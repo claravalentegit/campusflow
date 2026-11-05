@@ -3,7 +3,7 @@ import type { XpEvent } from './game'
 import { petMood, petStage } from './pet'
 import { buildGuide, lateOpen, reopenEmail } from './guide'
 import { buildPlan } from './plan'
-import { canCheckOff, lockState, needsCanvasSubmission } from './assignments'
+import { canCheckOff, doneReason, isAssignmentDone, lockState, needsCanvasSubmission } from './assignments'
 import type { Assignment, Course, CourseModule, GradeRecord, ModuleItem } from './types'
 
 const NOW = new Date(2026, 9, 28, 15, 0)
@@ -71,6 +71,12 @@ describe('Canvas check-off', () => {
     expect(needsCanvasSubmission(a({ source: 'canvas' }))).toBe(true) // synced before types were stored
     expect(canCheckOff(a({ source: 'manual' }))).toBe(true)
     expect(canCheckOff(a({ source: 'demo' }))).toBe(true)
+  })
+  it('"I didn’t do this" overrides Canvas until something newer is turned in', () => {
+    const sub = (submittedAt: string) => ({ state: 'submitted' as const, submittedAt, syncedAt: at(0), source: 'canvas' as const })
+    expect(isAssignmentDone(a({ source: 'canvas', canvasSubmission: sub(at(-2)), notDoneAt: at(-1) }))).toBe(false)
+    expect(isAssignmentDone(a({ source: 'canvas', canvasSubmission: sub(at(0)), notDoneAt: at(-1) }))).toBe(true)
+    expect(doneReason(a({ source: 'canvas', canvasSubmission: sub(at(-2)) }))?.text).toMatch(/turned in/)
   })
 })
 

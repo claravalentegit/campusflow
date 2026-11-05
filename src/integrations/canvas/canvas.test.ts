@@ -68,6 +68,9 @@ describe('Canvas: what counts as turned in', () => {
     expect(submissionState({ ...base, workflow_state: 'graded', score: 0, missing: true })).toBe('missing')
     expect(submissionState({ ...base, workflow_state: 'graded', score: null, late_policy_status: 'missing' })).toBe('missing')
   })
+  it('a turn-in time on a submission Canvas still calls unsubmitted (started, not turned in) is not done', () => {
+    expect(submissionState({ workflow_state: 'unsubmitted', submitted_at: '2026-11-01T10:00:00Z' })).toBe('unsubmitted')
+  })
   it('turned in, excused, or graded with points (on paper) is done', () => {
     expect(submissionState({ workflow_state: 'submitted', submitted_at: '2026-11-01T10:00:00Z' })).toBe('submitted')
     expect(submissionState({ workflow_state: 'graded', submitted_at: '2026-11-01T10:00:00Z', score: 0 })).toBe('graded')
@@ -80,12 +83,13 @@ describe('Canvas: what counts as turned in', () => {
       events: [],
       courses: [{ course: { id: 1, name: 'Bio', course_code: 'BIO' }, assignmentGroups: [], modules: [], announcements: [], assignments: [{ id: 5, course_id: 1, name: 'HW', description: null, due_at: null, points_possible: 10, html_url: 'https://c/5' }] }],
       planner: [
-        { course_id: 1, plannable_id: 5, plannable_type: 'assignment', plannable: { id: 5, title: 'HW' } },
+        { course_id: 1, plannable_id: 5, plannable_type: 'assignment', plannable: { id: 5, title: 'HW' }, planner_override: { marked_complete: true } },
         { course_id: 1, plannable_id: 9, plannable_type: 'quiz', html_url: 'https://c/courses/1/quizzes/9', plannable: { id: 9, title: 'Survey', due_at: '2026-11-03T00:00:00Z' }, submissions: { submitted: false } },
         { course_id: 1, plannable_id: 3, plannable_type: 'wiki_page', plannable: { id: 3, title: 'Read: Cells', todo_date: '2026-11-02T00:00:00Z' }, submissions: false },
       ],
     })
     expect(mapped.assignments.map((a) => a.title)).toEqual(['HW', 'Survey', 'Read: Cells'])
+    expect(mapped.assignments[0].canvasSubmission).toBeNull() // ticked in Canvas's To Do is not turned in
     expect(mapped.assignments[1]).toMatchObject({ type: 'quiz', canvasSubmissionTypes: ['online_quiz'], htmlUrl: 'https://c/courses/1/quizzes/9' })
     expect(mapped.assignments[2]).toMatchObject({ type: 'reading', canvasSubmissionTypes: ['none'] })
   })

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { canCheckOff, checklistProgress, isAssignmentDone } from '@/domain/assignments'
+import { canCheckOff, checklistProgress, doneReason, isAssignmentDone } from '@/domain/assignments'
+import { confirm } from '@/components/ui/Dialog'
 import { syncCanvas } from '@/integrations/canvas/sync'
 import type { Assignment, StudyTask } from '@/domain/types'
 import { useStore } from '@/store/appStore'
 import { toast } from '@/store/ui'
 import { celebrateCompletion, sfx } from './fx'
-import { tr } from '@/i18n/core'
+import { fmtDate, tr } from '@/i18n/core'
 
 /** Skip an assignment: it leaves CampusFlow (not Canvas), with an Undo. */
 export function skipAssignment(a: Assignment) {
@@ -34,6 +35,17 @@ function refuseUntilSubmitted(a: Assignment) {
 }
 
 
+/** "Didn't do this?": explain why it counts as done, and offer to put it back on the list. */
+export async function askNotDone(a: Assignment) {
+  const why = doneReason(a)
+  const reason = why ? tr(why.text, { when: why.when ? fmtDate(new Date(why.when), 'EEE MMM d, h:mm a') : '' }) : ''
+  const ok = await confirm({ title: tr('Didn’t do this?'), message: `${reason} ${tr('Put it back on your list? Any XP it gave goes away.')}`, confirmLabel: tr('Put it back'), tone: 'primary' })
+  if (!ok) return
+  useStore.getState().markNotDone(a.id)
+  sfx.undo()
+  toast(tr('“{title}” is back on your list.', { title: a.title }), 'info')
+}
+
 /**
  * Complete (or reopen) an assignment with the full reward treatment and an Undo.
  * Returns false when it can't be checked off yet (a Canvas assignment that isn't turned in).
@@ -45,8 +57,8 @@ export function completeAssignment(a: Assignment, el: Element | null): boolean {
     return false
   }
   if (isAssignmentDone(a) && a.status !== 'completed' && a.status !== 'submitted') {
-    // Done because Canvas says it's turned in: that can't be undone from here.
-    toast(tr('Canvas shows this as turned in, so it stays checked.'), 'info')
+    // Done because Canvas says so. If that's wrong, the student can put it back on the list.
+    void askNotDone(a)
     return false
   }
   if (isAssignmentDone(a)) {

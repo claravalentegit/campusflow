@@ -1,12 +1,25 @@
 import { parseInstant } from './dates'
 import type { Assignment, AssignmentStatus, Priority, StudyTask } from './types'
+import { msg } from '@/i18n/langs'
 
 const OFFICIALLY_SUBMITTED = new Set(['submitted', 'graded', 'pending_review'])
 
 /** True when the student no longer needs to work on the assignment. */
 export function isAssignmentDone(a: Assignment): boolean {
   if (a.status === 'completed' || a.status === 'submitted') return true
-  return a.canvasSubmission != null && OFFICIALLY_SUBMITTED.has(a.canvasSubmission.state)
+  if (a.canvasSubmission == null || !OFFICIALLY_SUBMITTED.has(a.canvasSubmission.state)) return false
+  // The student said "I didn't do this": Canvas's "done" is ignored until something newer is turned in.
+  if (a.notDoneAt) return !!a.canvasSubmission.submittedAt && a.canvasSubmission.submittedAt > a.notDoneAt
+  return true
+}
+
+/** Why an assignment counts as done, in plain words (English; translated where it's shown). */
+export function doneReason(a: Assignment): { text: string; when: string | null } | null {
+  if (!isAssignmentDone(a)) return null
+  if (a.status === 'completed' || a.status === 'submitted') return { text: msg('You checked it off in CampusFlow.'), when: null }
+  const sub = a.canvasSubmission!
+  if (sub.submittedAt) return { text: msg('Canvas shows it turned in {when}.'), when: sub.submittedAt }
+  return { text: msg('Canvas shows a grade for it (like work handed in on paper).'), when: null }
 }
 
 /**

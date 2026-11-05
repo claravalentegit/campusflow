@@ -82,7 +82,8 @@ const MODULE_ITEM_TYPE: Record<CanvasRawModuleItem['type'], ModuleItemType> = {
  */
 export function submissionState(sub: CanvasRawSubmission): NonNullable<Assignment['canvasSubmission']>['state'] {
   if (sub.excused) return 'graded'
-  if (sub.submitted_at) return sub.workflow_state === 'unsubmitted' ? 'submitted' : sub.workflow_state
+  // A turn-in time on a submission Canvas still calls unsubmitted means started, not turned in.
+  if (sub.submitted_at && sub.workflow_state !== 'unsubmitted') return sub.workflow_state
   if (sub.missing || sub.late_policy_status === 'missing') return 'missing'
   if (sub.workflow_state === 'graded' && (sub.score ?? 0) > 0) return 'graded'
   return 'unsubmitted'
@@ -220,17 +221,15 @@ export function mapCanvasSnapshot(raw: CanvasRawSnapshot): CanvasMapped {
     if (!courseId || !['quiz', 'discussion_topic', 'wiki_page', 'assignment'].includes(p.plannable_type)) continue
     const linked = p.plannable_type === 'assignment' ? p.plannable_id : p.plannable.assignment_id
     if (linked) {
-      // Already imported as an assignment: the planner only adds "marked done" from Canvas's To Do.
-      const a = out.assignments.find((x) => x.id === canvasIdFor.assignment(linked))
-      if (a && p.planner_override?.marked_complete && a.canvasSubmission?.state !== 'missing') a.canvasSubmission = { state: 'submitted', submittedAt: a.canvasSubmission?.submittedAt ?? null, syncedAt, source: 'canvas' }
-      if (a || have.has(canvasIdFor.assignment(linked))) continue
+      // Already imported as an assignment. (Ticking it in Canvas's To Do is not turning it in, so that's ignored.)
+      if (have.has(canvasIdFor.assignment(linked))) continue
     }
     const id = `cv_todo_${p.plannable_type}_${p.plannable_id}`
     if (have.has(id)) continue
     have.add(id)
     const subs = p.submissions
     const tracked = !!subs
-    const state: NonNullable<Assignment['canvasSubmission']>['state'] = subs && (subs.submitted || subs.excused) ? 'submitted' : subs && subs.missing ? 'missing' : p.planner_override?.marked_complete ? 'submitted' : 'unsubmitted'
+    const state: NonNullable<Assignment['canvasSubmission']>['state'] = subs && (subs.submitted || subs.excused) ? 'submitted' : subs && subs.missing ? 'missing' : 'unsubmitted'
     out.assignments.push({
       id,
       courseId,

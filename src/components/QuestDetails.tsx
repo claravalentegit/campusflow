@@ -2,14 +2,14 @@ import { useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { ExternalLink, Lock, Pencil, Plus, SkipForward, Timer, Trash2, Wand2, X } from 'lucide-react'
 import { lockText } from '@/components/LockTag'
-import { isAssignmentDone, tasksForAssignment } from '@/domain/assignments'
+import { doneReason, isAssignmentDone, tasksForAssignment } from '@/domain/assignments'
 import { parseInstant } from '@/domain/dates'
 import { xpForTaskNow } from '@/domain/game'
 import { canvasSubmissionLabel } from '@/domain/labels'
 import type { Assignment, StudyTask } from '@/domain/types'
 import { useStore } from '@/store/appStore'
 import { useUi } from '@/store/ui'
-import { completeTask, skipAssignment } from '@/game/actions'
+import { askNotDone, completeTask, skipAssignment } from '@/game/actions'
 import { sfx } from '@/game/fx'
 import { CheckButton, XpChip } from '@/components/game/GameUI'
 import { useDeleteAssignment } from '@/components/work'
@@ -65,6 +65,18 @@ export function AssignmentDetails({ a, now }: { a: Assignment; now: Date }) {
           {lock.detail}
         </p>
       )}
+      {done && (() => {
+        const why = doneReason(a)
+        if (!why) return null
+        return (
+          <div className="flex flex-wrap items-center gap-2 rounded-xl bg-success-soft px-3 py-2 text-sm font-bold text-success" data-testid="done-reason">
+            <span className="min-w-0 flex-1">{t(why.text, { when: why.when ? fmtDate(new Date(why.when), 'EEE MMM d, h:mm a') : '' })}</span>
+            <Button size="sm" variant="ghost" onClick={() => void askNotDone(a)}>
+              {t('I didn’t do this')}
+            </Button>
+          </div>
+        )
+      })()}
       {a.description && <p className="line-clamp-4 text-sm leading-relaxed font-semibold whitespace-pre-line text-fg-2">{a.description}</p>}
 
       <section aria-label={t('Stages')}>

@@ -174,6 +174,8 @@ export interface Assignment {
   moduleId: ID | null
   /** How Canvas takes this assignment (online_upload, on_paper, none…). Missing on data synced before this was added. */
   canvasSubmissionTypes?: string[] | null
+  /** The student said they didn't do it, though Canvas says done: Canvas's "done" from before this is ignored. */
+  notDoneAt?: ISODateTime | null
   canvasSubmission: CanvasSubmission | null
   source: RecordSource
   canvasId: string | null

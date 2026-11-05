@@ -471,6 +471,15 @@ await test('Canvas: connect with an access token, import classes, and sync on To
   await page.waitForFunction((b) => Number(document.getElementById('xp-target')?.innerText.replace(/[^\d]/g, '')) > b, xpBefore, { timeout: 5000 })
   await dialog(page).getByRole('button', { name: 'Awesome!' }).click()
   await dismissCelebrations(page)
+  // "Didn't do this?": anything Canvas counts as done can be put back on the list.
+  await page.goto(`${BASE}/courses?view=all`)
+  await page.getByRole('radio', { name: 'Everything' }).click()
+  await page.getByRole('checkbox', { name: 'Undo Lab Report 3: Distillation' }).click()
+  await dialog(page).getByText(/Canvas shows it turned in/).waitFor()
+  await dialog(page).getByRole('button', { name: 'Put it back' }).click()
+  await page.getByRole('checkbox', { name: 'Complete Lab Report 3: Distillation' }).waitFor()
+  await page.goto(`${BASE}/`)
+  await ready(page)
   // Submitting on Canvas earns XP on the next sync.
   const before = await xp(page)
   await fetch(`${MOCK}/__test/submit/9101`, { method: 'POST' })

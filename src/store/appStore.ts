@@ -143,6 +143,8 @@ interface Actions {
   startEmpty: () => void
   /** Merge a Canvas sync. Returns XP events for work newly submitted on Canvas since connecting. */
   applyCanvasSync: (mapped: CanvasMapped, account: { userName: string; baseHost: string }) => { turnedIn: string[]; reopened: number; courses: number; assignments: number }
+  /** "I didn't do this": put an assignment back on the list, and take back XP it earned. */
+  markNotDone: (id: string) => void
   /** Cross off work you turned in on Canvas: earns its XP. Returns the XP events. */
   claimTurnedIn: (ids: string[]) => XpEvent[]
   /** Once: find Canvas work turned in lately that never earned XP, and list it to cross off. */
@@ -485,6 +487,12 @@ export const useStore = create<Store>()(
         })
         return { turnedIn: turnedIn.map((x) => x.id), reopened, courses: mapped.courses.length, assignments: mapped.assignments.length }
       },
+      markNotDone: (id) =>
+        set((s) => ({
+          assignments: s.assignments.map((a) => (a.id === id ? { ...a, status: 'not_started' as const, completedAt: null, notDoneAt: now() } : a)),
+          xpEvents: s.xpEvents.filter((e) => !(e.kind === 'assignment' && e.refId === id)),
+          prefs: { ...s.prefs, toClaim: s.prefs.toClaim.filter((x) => x.id !== id) },
+        })),
       claimTurnedIn: (ids) => {
         const s = get()
         const want = new Set(ids)
