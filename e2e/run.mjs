@@ -438,8 +438,7 @@ await test('Canvas: connect with an access token, import classes, and sync on To
   await ready(page)
   await page.getByText('Homework 6: Eigenvalues').waitFor()
   await page.getByText(/Synced with Canvas/).waitFor()
-  // A 0 the teacher typed in isn't "done", and Canvas To Do items that aren't assignments show up too.
-  await page.getByText('Pre-lab Quiz 4').first().waitFor()
+  // Canvas To Do items that aren't assignments show up too.
   await page.getByText('Survey: Study habits').first().waitFor()
   assert(!(await page.getByText('Calculus III').count()), 'demo data still present')
   // The late discussion is closed on Canvas: the Grade guide suggests asking the teacher to reopen it.
@@ -448,6 +447,12 @@ await test('Canvas: connect with an access token, import classes, and sync on To
   if ((await soc.getByRole('button', { name: /Intro to Sociology/ }).getAttribute('aria-expanded')) !== 'true') await soc.getByRole('button', { name: /Intro to Sociology/ }).click()
   await soc.getByText(/“Discussion: Social Norms” is closed on Canvas/).waitFor()
   await soc.getByRole('button', { name: 'Write the email' }).waitFor()
+  // Missing work with a 0 typed in, still open on Canvas: it's in the Grade guide to turn in.
+  const chem = guide.locator('li').filter({ has: page.getByRole('button', { name: /Organic Chemistry/ }) }).first()
+  if ((await chem.getByRole('button', { name: /Organic Chemistry/ }).getAttribute('aria-expanded')) !== 'true') await chem.getByRole('button', { name: /Organic Chemistry/ }).click()
+  await chem.getByTestId('class-guide').getByText('Pre-lab Quiz 4').waitFor()
+  // Closed work isn't listed anywhere (only named in the email to the teacher).
+  assert(!(await page.locator('[id^="quest-"]').filter({ hasText: 'Discussion: Social Norms' }).count()), 'closed work shown on Today')
   // Not turned in on Canvas yet: it can't be checked off (a red ✕), and nothing is earned.
   const labCheck = page.getByRole('checkbox', { name: 'Complete Lab Report 3: Distillation' })
   const xpBefore = await xp(page)
@@ -574,7 +579,8 @@ await test('Family: a parent links with a code, sees everything in plain words, 
   }
   const view = parent.getByTestId('parent-view')
   await view.getByText('Jordan’s week').waitFor()
-  await view.getByRole('region', { name: 'Needs attention' }).getByText('Discussion: Social Norms').waitFor()
+  await view.getByRole('region', { name: 'Needs attention' }).getByText('Pre-lab Quiz 4').waitFor()
+  assert(!(await view.getByText('Discussion: Social Norms').count()), 'closed work shown to the parent')
   await view.getByRole('region', { name: 'Coming up' }).getByText('Homework 6: Eigenvalues').waitFor()
   await view.getByRole('tab', { name: 'Classes' }).click()
   await view.getByRole('button', { name: /Linear Algebra/ }).click()

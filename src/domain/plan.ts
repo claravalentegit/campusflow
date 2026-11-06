@@ -1,5 +1,5 @@
 import { differenceInCalendarDays, differenceInHours } from 'date-fns'
-import { isAssignmentDone } from './assignments'
+import { isAssignmentDone, isClosed } from './assignments'
 import { parseInstant } from './dates'
 import { buildGuide, type ClassGuide, type TurnIn } from './guide'
 import type { Assignment, Course, CourseModule, GradeRecord, ModuleItem } from './types'
@@ -67,7 +67,7 @@ export function buildPlan({ courses, assignments, grades, modules, done }: PlanI
 
   // Tests coming up: the class's unfinished lessons, newest modules first.
   for (const exam of assignments) {
-    if (exam.type !== 'exam' || isAssignmentDone(exam)) continue
+    if (exam.type !== 'exam' || isAssignmentDone(exam) || isClosed(exam, now)) continue
     const due = parseInstant(exam.dueAt)
     if (!due) continue
     const days = differenceInCalendarDays(due, now)

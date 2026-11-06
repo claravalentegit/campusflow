@@ -126,6 +126,13 @@ export function lockState(a: Pick<Assignment, 'unlockAt' | 'lockAt' | 'lockedFor
   if (unlock && now < unlock) return { kind: 'opens', at: unlock }
   const lock = parseInstant(a.lockAt ?? null)
   if (lock && now >= lock) return { kind: 'closed', at: lock, why: a.lockExplanation ?? null }
-  if (a.lockedForUser) return { kind: 'closed', at: null, why: a.lockExplanation ?? null }
+  // Canvas also says "locked" when earlier module steps come first: that can still be done, so it's
+  // not closed. Only a lock date that passed (or Canvas saying so in words) closes it.
+  if (a.lockedForUser && /was locked|is locked|no longer available|closed/i.test(a.lockExplanation ?? '')) return { kind: 'closed', at: null, why: a.lockExplanation ?? null }
   return null
+}
+
+/** Closed on Canvas and not done: can't be turned in anymore, so it's left out of every list. */
+export function isClosed(a: Assignment, now: Date): boolean {
+  return !isAssignmentDone(a) && lockState(a, now)?.kind === 'closed'
 }

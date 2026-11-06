@@ -58,11 +58,12 @@ function worthOf(a: Assignment, course: Course, mine: Assignment[]): number | nu
 }
 
 function withScores(course: Course, grades: GradeRecord[], items: Assignment[], score: (a: Assignment) => number): GradeRecord[] {
-  const graded = new Set(grades.map((g) => g.assignmentId))
+  // Replaces any grade those items have (a 0 for missing work becomes the what-if score).
+  const ids = new Set(items.map((a) => a.id))
   const extra: GradeRecord[] = items
-    .filter((a) => a.pointsPossible && !graded.has(a.id))
+    .filter((a) => a.pointsPossible)
     .map((a) => ({ id: `guess_${a.id}`, courseId: course.id, assignmentId: a.id, title: a.title, categoryId: a.gradeCategoryId, score: score(a), outOf: a.pointsPossible!, source: 'manual', gradedAt: '' }))
-  return [...grades, ...extra]
+  return [...grades.filter((g) => !g.assignmentId || !ids.has(g.assignmentId)), ...extra]
 }
 
 export function buildGuide(courses: Course[], assignments: Assignment[], grades: GradeRecord[], now: Date): ClassGuide[] {
@@ -71,11 +72,11 @@ export function buildGuide(courses: Course[], assignments: Assignment[], grades:
     .map((course) => {
       const mine = assignments.filter((a) => a.courseId === course.id)
       const myGrades = grades.filter((g) => g.courseId === course.id)
-      const gradedIds = new Set(myGrades.map((g) => g.assignmentId))
       const turnIn: TurnIn[] = []
       const closed: Assignment[] = []
       for (const a of mine) {
-        if (isAssignmentDone(a) || gradedIds.has(a.id)) continue
+        // A 0 typed in for missing work is a grade, but the work can often still be turned in: keep it.
+        if (isAssignmentDone(a)) continue
         const lock = lockState(a, now)
         if (lock?.kind === 'opens') continue
         const late = isAssignmentOverdue(a, now) || a.canvasSubmission?.state === 'missing'

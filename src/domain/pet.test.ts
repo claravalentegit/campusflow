@@ -85,8 +85,18 @@ describe('locks', () => {
     expect(lockState(a({ unlockAt: at(2) }), NOW)?.kind).toBe('opens')
     expect(lockState(a({ lockAt: at(-1) }), NOW)?.kind).toBe('closed')
     expect(lockState(a({ lockAt: at(1) }), NOW)).toBeNull()
-    expect(lockState(a({ lockedForUser: true, lockExplanation: 'Locked by teacher' }), NOW)).toMatchObject({ kind: 'closed', why: 'Locked by teacher' })
+    expect(lockState(a({ lockedForUser: true, lockExplanation: 'This assignment was locked Nov 1 at 11:59pm.' }), NOW)).toMatchObject({ kind: 'closed' })
+    // Locked only until earlier module steps are done: still doable, so not closed.
+    expect(lockState(a({ lockedForUser: true, lockExplanation: 'This assignment is part of the module Unit 3 and hasn’t been unlocked yet.' }), NOW)).toBeNull()
     expect(lockState(a({}), NOW)).toBeNull()
+  })
+  it('missing work with a 0 typed in still shows in the Grade guide when it can be turned in', () => {
+    const course = { id: 'c', name: 'Bio', gradeCategories: [], status: 'active', hidden: false } as unknown as Course
+    const zero = { id: 'g', courseId: 'c', assignmentId: 'm', title: 'm', categoryId: null, score: 0, outOf: 10, source: 'canvas', gradedAt: '' } as GradeRecord
+    const missing = a({ id: 'm', pointsPossible: 10, dueAt: at(-3), canvasSubmission: { state: 'missing', submittedAt: null, syncedAt: at(0), source: 'canvas' } })
+    const g = buildGuide([course], [missing], [zero], NOW)[0]
+    expect(g.turnIn.map((x) => x.a.id)).toEqual(['m'])
+    expect(g.ifTurnedIn).toBe(100)
   })
   it('closed work is not counted as fixable late work', () => {
     const list = [a({ id: 'open', dueAt: at(-1), lockAt: at(2) }), a({ id: 'closed', dueAt: at(-3), lockAt: at(-1) })]

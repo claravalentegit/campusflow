@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { differenceInCalendarDays, format, formatDistanceToNowStrict, isSameDay } from 'date-fns'
 import { ChevronDown, Flame, Lightbulb, LogOut, Megaphone, Settings, UserPlus } from 'lucide-react'
-import { isAssignmentDone, isAssignmentOverdue, lockState } from '@/domain/assignments'
+import { isAssignmentDone, isAssignmentOverdue, isClosed, lockState } from '@/domain/assignments'
 import { parseInstant } from '@/domain/dates'
 import { letterGrade, summarizeCourseGrades } from '@/domain/grades'
 import type { Course, GradeRecord } from '@/domain/types'
@@ -287,6 +287,10 @@ const TONE: Record<Tone, string> = {
 function status(a: Item, grades: GradeRecord[], now: Date, t: Strings, lang: Lang): { text: string; tone: Tone; late: boolean } {
   const due = parseInstant(a.dueAt)
   if (a.skipped) return { text: t.skipped, tone: 'gray', late: false }
+  // Not turned in and past due (even with a 0 typed in) is something to catch up on, if it's still open.
+  if (!isAssignmentDone(a) && lockState(a, now)?.kind !== 'closed' && (a.canvasSubmission?.state === 'missing' || isAssignmentOverdue(a, now))) {
+    return { text: a.canvasSubmission?.state === 'missing' ? t.missing : t.late, tone: 'red', late: true }
+  }
   const g = grades.find((x) => x.assignmentId === a.id && x.outOf > 0)
   if (g) {
     const pct = (g.score / g.outOf) * 100
@@ -314,7 +318,8 @@ function StudentView({ t, lang, studentId, name, view, data, tab, setTab }: { t:
   const rewardsReady = goals.filter((g) => g.status === 'active' && goalProgress(g, data, now).reached).length
   const locale = DATE_LOCALE[lang]
   const courseOf = useMemo(() => new Map(data.courses.map((c) => [c.id, c])), [data.courses])
-  const items = data.assignments
+  // Closed on Canvas: can't be turned in anymore, so it isn't listed.
+  const items = data.assignments.filter((a) => !isClosed(a, now))
   const st = (a: Item) => status(a, data.grades, now, t, lang)
   const late = items.filter((a) => st(a).late)
   const soon = items
@@ -476,7 +481,7 @@ function Row({ a, course, s, sub }: { a: Item; course: Course | undefined; s: { 
 
 function ClassCard({ t, lang, course, data, st }: { t: Strings; lang: Lang; course: Course; data: FamilySnapshot; st: (a: Item) => { text: string; tone: Tone } }) {
   const [open, setOpen] = useState(false)
-  const items = data.assignments.filter((a) => a.courseId === course.id)
+  const items = data.assignments.filter((a) => a.courseId === course.id && !isClosed(a, new Date()))
   const summary = summarizeCourseGrades(course, data.grades, items)
   const pct = summary.currentPercent
   const late = items.filter((a) => (st(a) as { late?: boolean }).late).length

@@ -99,7 +99,8 @@ export function ClassGuideSteps({ g }: { g: ClassGuide }) {
   const [email, setEmail] = useState<Assignment[] | null>(null)
   const t = useT()
   const steps: React.ReactNode[] = []
-  const shown = showAll ? g.turnIn : g.turnIn.slice(0, 3)
+  // Everything you can still do; only a really long list is folded.
+  const shown = showAll || g.turnIn.length <= 10 ? g.turnIn : g.turnIn.slice(0, 8)
 
   if (g.turnIn.length)
     steps.push(
@@ -125,9 +126,9 @@ export function ClassGuideSteps({ g }: { g: ClassGuide }) {
             </li>
           ))}
         </ul>
-        {g.turnIn.length > 3 && (
+        {g.turnIn.length > 10 && (
           <button type="button" onClick={() => setShowAll((s) => !s)} className="mt-1.5 text-xs font-black text-accent-text hover:underline">
-            {showAll ? t('Show less') : t('+ {n} more', { n: g.turnIn.length - 3 })}
+            {showAll ? t('Show less') : t('+ {n} more', { n: g.turnIn.length - 8 })}
           </button>
         )}
       </div>,

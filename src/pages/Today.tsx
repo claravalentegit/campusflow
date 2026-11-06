@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { differenceInCalendarDays, isSameDay } from 'date-fns'
 import { ChevronDown, Crown, ListChecks, Plug, Plus, RefreshCw, SkipForward, Trophy } from 'lucide-react'
-import { checklistProgress, isAssignmentDone, isAssignmentOverdue } from '@/domain/assignments'
+import { checklistProgress, isAssignmentDone, isAssignmentOverdue, isClosed } from '@/domain/assignments'
 import { dueBucket, formatDueDay, greeting, parseInstant, toLocalDay } from '@/domain/dates'
 import { isBoss, xpForAssignmentNow, xpForTaskNow } from '@/domain/game'
 import type { Assignment, Course, StudyTask } from '@/domain/types'
@@ -48,7 +48,7 @@ export function Today() {
   const [params, setParams] = useSearchParams()
   // Late work that the Grade guide covers (still open, or closed) isn't repeated in the Late list.
   const guide = useGuide()
-  const rescueIds = useMemo(() => new Set(guide.flatMap((g) => [...g.turnIn.filter((t) => t.late).map((t) => t.a.id), ...g.closed.map((a) => a.id)])), [guide])
+  const rescueIds = useMemo(() => new Set(guide.flatMap((g) => g.turnIn.filter((t) => t.late).map((t) => t.a.id))), [guide])
 
   // Search and "Open" links land here with ?open=<assignment id>: open that quest in place.
   useEffect(() => {
@@ -62,7 +62,8 @@ export function Today() {
 
   const groups = useMemo(() => {
     const inScope = (c: string | null) => !c || visible.has(c)
-    const showA = (a: Assignment) => inScope(a.courseId) && (!isAssignmentDone(a) || lingering.has(`a:${a.id}`))
+    // Closed on Canvas: can't be turned in anymore, so it isn't shown.
+    const showA = (a: Assignment) => inScope(a.courseId) && !isClosed(a, now) && (!isAssignmentDone(a) || lingering.has(`a:${a.id}`))
     const showT = (t: StudyTask) => inScope(t.courseId) && (!t.done || lingering.has(`t:${t.id}`))
     const byDue = (x: Assignment, y: Assignment) => (parseInstant(x.dueAt)?.getTime() ?? Infinity) - (parseInstant(y.dueAt)?.getTime() ?? Infinity)
     const open = assignments.filter(showA).sort(byDue)

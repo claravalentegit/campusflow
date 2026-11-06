@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { differenceInCalendarDays, format, formatDistanceToNowStrict, isToday, isTomorrow, isYesterday } from 'date-fns'
 import { Archive, ArchiveRestore, ChevronDown, ExternalLink, Eye, EyeOff, Megaphone, MoreHorizontal, Pencil, Plus, SkipForward, Trash2 } from 'lucide-react'
-import { isAssignmentDone, isAssignmentOverdue } from '@/domain/assignments'
+import { isAssignmentDone, isAssignmentOverdue, isClosed } from '@/domain/assignments'
 import { formatDueDay, parseInstant } from '@/domain/dates'
 import { letterGrade, requiredForTarget, summarizeCourseGrades } from '@/domain/grades'
 import type { Course, CourseStatus } from '@/domain/types'
@@ -151,7 +151,7 @@ function CourseCard({ c, index, open, onToggle }: { c: Course; index: number; op
   const t = useT()
 
   const mine = assignments.filter((a) => a.courseId === c.id)
-  const openWork = mine.filter((a) => !isAssignmentDone(a))
+  const openWork = mine.filter((a) => !isAssignmentDone(a) && !isClosed(a, now))
   const late = openWork.filter((a) => isAssignmentOverdue(a, now))
   const upcoming = openWork.filter((a) => a.dueAt && !isAssignmentOverdue(a, now)).sort((x, y) => x.dueAt!.localeCompare(y.dueAt!))
   const summary = summarizeCourseGrades(c, grades, assignments)
@@ -278,6 +278,7 @@ function AllAssignments() {
 
   const list = assignments
     .filter((a) => courseId === 'any' || a.courseId === courseId)
+    .filter((a) => !isClosed(a, now))
     .filter((a) => show === 'all' || !isAssignmentDone(a) || lingering.has(a.id))
     .sort((x, y) => (x.dueAt ?? '9999').localeCompare(y.dueAt ?? '9999') || x.title.localeCompare(y.title))
   const groups: Array<{ key: string; label: string; late: boolean; items: typeof list }> = []
@@ -292,7 +293,7 @@ function AllAssignments() {
     }
     g.items.push(a)
   }
-  const openCount = assignments.filter((a) => (courseId === 'any' || a.courseId === courseId) && !isAssignmentDone(a)).length
+  const openCount = assignments.filter((a) => (courseId === 'any' || a.courseId === courseId) && !isAssignmentDone(a) && !isClosed(a, now)).length
 
   return (
     <div className="flex flex-col gap-4" data-testid="all-assignments">
