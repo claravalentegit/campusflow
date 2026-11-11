@@ -79,6 +79,24 @@ export function ParentApp() {
     document.title = t.brand
   }, [t.brand])
 
+  // Parents get their own home-screen icon (teal) that opens this page, not the student app.
+  useEffect(() => {
+    const swap = (sel: string, attr: string, value: string) => {
+      const el = document.querySelector(sel)
+      const before = el?.getAttribute(attr) ?? null
+      el?.setAttribute(attr, value)
+      return () => before != null && el?.setAttribute(attr, before)
+    }
+    const undo = [
+      swap('link[rel=apple-touch-icon]', 'href', '/family-apple-touch-icon.png'),
+      swap('link[rel=manifest]', 'href', '/family.webmanifest'),
+      swap('link[rel=icon]', 'href', '/family-favicon.svg'),
+      swap('meta[name=apple-mobile-web-app-title]', 'content', 'CF Family'),
+      swap('meta[name=theme-color]', 'content', TEAL),
+    ]
+    return () => undo.forEach((f) => f())
+  }, [])
+
   const loadMe = useCallback(async () => {
     try {
       const m = await call<Me>('/api/parent/me')
