@@ -21,6 +21,7 @@ import { TopBar } from './TopBar'
 import { installClickSounds } from '@/game/fx'
 import { useFamilyGoals, useFamilySync } from '@/integrations/family'
 import { TurnedInDialog } from '../TurnedInDialog'
+import { useAccountAutoSync } from '@/integrations/account'
 import { useT } from '@/i18n'
 
 function useApplyTheme() {
@@ -53,6 +54,7 @@ export function AppShell() {
   }, [lang])
   useCanvasAutoSync()
   useFamilySync()
+  useAccountAutoSync()
   useFamilyGoals()
   const navigate = useNavigate()
   useEffect(() => setSyncNavigator(navigate), [navigate])

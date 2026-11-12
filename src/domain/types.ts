@@ -352,6 +352,8 @@ export interface Preferences {
   toClaim: Array<{ id: ID; at: ISODateTime }>
   /** The one-time catch-up of turned-in work that never earned XP has run. */
   turnedInRecovered: boolean
+  /** Sync with your CampusFlow account: the revision this device last saved or loaded, and unsaved changes. */
+  account: { rev: number; savedAt: ISODateTime | null; dirty: boolean }
   /** App language. English by default. */
   language: 'en' | 'es' | 'pt'
 }

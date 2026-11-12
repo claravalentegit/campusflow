@@ -9,6 +9,7 @@ import { useStore } from '@/store/appStore'
 import { AnimatedNumber, BadgeIcon, ProgressBar, useStreak, useXp } from '@/components/game/GameUI'
 import { Pet } from '@/components/game/Pet'
 import { PetPicker } from '@/components/game/PetCard'
+import { AccountPanel } from '@/components/AccountPanel'
 import { FamilyPanel } from '@/components/FamilyPanel'
 import { SettingsSections } from '@/components/SettingsSections'
 import { Page, usePageTitle } from '@/components/Page'
@@ -119,6 +120,10 @@ export function Me() {
       </section>
 
       <div className="mt-8">
+        <AccountPanel />
+      </div>
+
+      <div className="mt-5">
         <FamilyPanel />
       </div>
 

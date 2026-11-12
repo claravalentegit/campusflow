@@ -667,6 +667,43 @@ await test('Family: a parent links with a code, sees everything in plain words, 
   await parentCtx.close()
 }, undefined, { fresh: true })
 
+await test('Account: progress follows you to another device with a code, and Sign out forgets it', async (page) => {
+  await page.goto(`${BASE}/`)
+  await connectThroughCards(page, MOCK, MOCK_TOKEN)
+  await page.getByRole('button', { name: 'Let’s go' }).click()
+  await ready(page)
+  await pickPet(page, 'Fox', 'Zippy')
+  await page.goto(`${BASE}/me#account`)
+  await page.getByTestId('account-status').getByText(/Saved to your account/).waitFor({ timeout: 15000 })
+  await page.getByRole('button', { name: 'Use on another device' }).click()
+  const code = ((await page.getByTestId('device-code').locator('p').nth(1).innerText()) || '').replace(/\D/g, '')
+  assert(/^\d{6}$/.test(code), `no code: ${code}`)
+
+  // A second device: a fresh browser, no Canvas token, just the code (as from the QR link).
+  const ctx2 = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const other = await ctx2.newPage()
+  other.on('pageerror', (e) => consoleErrors.push(`account device 2: ${e}`))
+  await other.goto(`${BASE}/link?code=${code}`)
+  await other.getByRole('heading', { name: 'Sign in with a code' }).waitFor()
+  await other.getByRole('button', { name: 'Sign in' }).click()
+  await other.getByTestId('welcome-back').getByText('Welcome back, Jordan!').waitFor()
+  await other.screenshot({ path: join(shots, 'account-welcome-back.png') })
+  await other.getByRole('button', { name: 'Let’s go' }).click()
+  await other.getByTestId('pet-mood').getByText(/Zippy/).waitFor()
+  await other.getByText('Homework 6: Eigenvalues').first().waitFor()
+  // The code works once.
+  const again = await other.evaluate((c) => fetch('/api/account/device-link', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CampusFlow': '1' }, body: JSON.stringify({ code: c }) }).then((r) => r.status), code)
+  assert(again === 404, `code worked twice: ${again}`)
+
+  // Sign out of the second device: it forgets everything and goes back to the sign-in cards.
+  await other.goto(`${BASE}/me#account`)
+  await other.getByRole('button', { name: 'Sign out of this device' }).click()
+  await dialog(other).getByRole('button', { name: 'Sign out' }).click()
+  await other.getByRole('heading', { name: 'Connect your Canvas' }).waitFor()
+  assert(!(await other.evaluate(() => localStorage.getItem('campusflow:v1') ?? '')).includes('Zippy'), 'signed-out device still has the data')
+  await ctx2.close()
+}, undefined, { fresh: true })
+
 await test('Canvas: without the server, the page says so instead of pretending', async (page) => {
   await page.route('**/api/**', (r) => r.abort())
   await page.goto(`${BASE}/connect`)

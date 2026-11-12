@@ -15,6 +15,7 @@ import { CanvasHttpError, fetchSnapshot, getOne, readCanvasConfig, type CanvasCo
 import { assertCsrfSafe, assertSafeCanvasHost, clientIp, HttpError, normalizeCanvasUrl, rateLimit, readJsonBody } from './security.ts'
 import { createSession, destroySession, getSession, initSessions, parseCookies, setCookie, type CanvasSession } from './session.ts'
 import { family, FamilyError, studentIdFor } from './family.ts'
+import { account, AccountError, MAX_DATA_BYTES } from './account.ts'
 import { openKv } from './kv.ts'
 
 const root = resolve(import.meta.dirname, '..')
@@ -27,13 +28,14 @@ const DATA_DIR = resolve(root, process.env.DATA_DIR ?? '.data')
 initSessions(DATA_DIR)
 const kv = await openKv(DATA_DIR)
 const fam = family(kv)
+const acct = account(kv)
 const PARENT_COOKIE = 'cf_parent'
 const PARENT_MAX_AGE_S = 400 * 24 * 3600
 
 /** The signed-in student (family sharing needs a real Canvas sign-in, not the demo). */
 function familyStudent(req: IncomingMessage): { id: string; name: string } {
   const s = getSession(req)
-  if (!s || !s.userId) throw new HttpError(401, 'Connect Canvas to share with your family.')
+  if (!s || !s.userId) throw new HttpError(401, 'Connect Canvas first.')
   return { id: studentIdFor(s.baseUrl, s.userId), name: s.userName.split(' ')[0] || 'Student' }
 }
 
@@ -109,6 +111,42 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL) {
       if (e instanceof CanvasHttpError && e.status === 401) return json(res, 200, { state: 'unauthorized', message: 'Canvas sign-in expired or was revoked. Connect again.' })
       return json(res, 200, { state: 'error', message: e instanceof Error ? e.message : 'Couldn’t reach Canvas.' })
     }
+  }
+
+  // ——— Your account: the same progress on every device ———
+  if (path === '/api/account' && method === 'GET') {
+    const s = getSession(req)
+    if (!s || !s.userId) return json(res, 200, { signedIn: false })
+    const saved = await acct.load(studentIdFor(s.baseUrl, s.userId))
+    // "memory": nothing outlives a server restart (no database set up yet).
+    return json(res, 200, { signedIn: true, userName: s.userName, baseHost: new URL(s.baseUrl).host, rev: saved?.rev ?? 0, updatedAt: saved?.updatedAt ?? null, storage: kv.kind })
+  }
+  if (path === '/api/account/data' && method === 'GET') {
+    const st = familyStudent(req)
+    return json(res, 200, (await acct.load(st.id)) ?? { rev: 0, updatedAt: null, data: null })
+  }
+  if (path === '/api/account/data' && method === 'POST') {
+    assertCsrfSafe(req)
+    const st = familyStudent(req)
+    rateLimit(`account-save:${st.id}`, 40, 60_000)
+    const body = await readJsonBody<{ baseRev?: unknown; data?: unknown }>(req, MAX_DATA_BYTES)
+    return json(res, 200, await acct.save(st.id, body.baseRev, body.data))
+  }
+  if (path === '/api/account/device-code' && method === 'POST') {
+    assertCsrfSafe(req)
+    const s = getSession(req)
+    if (!s || !s.userId) throw new HttpError(401, 'Connect Canvas first.')
+    rateLimit(`device-code:${studentIdFor(s.baseUrl, s.userId)}`, 10, 3600_000)
+    return json(res, 200, await acct.createDeviceCode({ baseUrl: s.baseUrl, accessToken: s.accessToken, userName: s.userName, userId: s.userId }))
+  }
+  if (path === '/api/account/device-link' && method === 'POST') {
+    assertCsrfSafe(req)
+    rateLimit(`device-link:${clientIp(req)}`, 8, 10 * 60_000)
+    rateLimit('device-link:all', 300, 10 * 60_000)
+    const body = await readJsonBody<{ code?: string }>(req)
+    const grant = await acct.redeemDeviceCode(body.code)
+    createSession(req, res, grant)
+    return json(res, 200, { state: 'connected', userName: grant.userName, baseHost: new URL(grant.baseUrl).host })
   }
 
   // ——— Family sharing: the student's side ———
@@ -222,6 +260,7 @@ createServer((req, res) => {
   const path = url.pathname
   if (path.startsWith('/api/')) {
     handleApi(req, res, url).catch((e) => {
+      if (e instanceof AccountError) return json(res, e.status, { message: e.message, current: e.current })
       if (e instanceof HttpError || e instanceof FamilyError) return json(res, e.status, { message: e.message })
       console.error(e)
       json(res, 500, { message: 'Internal error' })

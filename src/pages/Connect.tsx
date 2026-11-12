@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { ArrowLeft, ArrowRight, CheckCircle2, ClipboardPaste, ExternalLink, Eye, EyeOff, Globe, KeyRound, Laptop, Loader2, Plug, RefreshCw, Settings2, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, ArrowRight, CheckCircle2, ClipboardPaste, ExternalLink, Eye, EyeOff, Globe, KeyRound, Laptop, Loader2, Plug, RefreshCw, Settings2, ShieldCheck, Smartphone } from 'lucide-react'
 import { canvasApi, CanvasError } from '@/integrations/canvas/adapter'
 import type { CanvasStatus } from '@/integrations/canvas/types'
 import { syncCanvas, useCanvasSync, type SyncResult } from '@/integrations/canvas/sync'
 import { useStore } from '@/store/appStore'
+import { accountApi, pullAccount } from '@/integrations/account'
+import { levelFor, totalXp } from '@/domain/game'
 import { cannons, sfx } from '@/game/fx'
 import { AnimatedNumber } from '@/components/game/GameUI'
 import { BrandMark } from '@/components/layout/Brand'
@@ -32,7 +34,7 @@ export function hostFrom(input: string): string | null {
 /** The steps of the sign-in deck, in order. */
 const STEPS = ['welcome', 'address', 'settings', 'token', 'paste'] as const
 type Step = (typeof STEPS)[number]
-type Card = Step | 'importing' | 'done' | 'connected' | 'checking' | 'preview'
+type Card = Step | 'importing' | 'done' | 'connected' | 'checking' | 'preview' | 'device' | 'welcome-back'
 
 export function Connect() {
   const t = useT()
@@ -52,6 +54,9 @@ export function Connect() {
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<{ result: SyncResult; userName: string } | null>(null)
   const host = useMemo(() => hostFrom(address), [address])
+  const [params] = useSearchParams()
+  const [deviceCode, setDeviceCode] = useState(() => (params.get('code') ?? '').replace(/\D/g, '').slice(0, 6))
+  const [welcomeBack, setWelcomeBack] = useState<{ name: string; level: number; xp: number } | null>(null)
   const skipLabel = mode === 'demo' ? t('Try the demo instead') : t('Continue without Canvas')
 
   useEffect(() => {
@@ -63,7 +68,8 @@ export function Connect() {
         setServerOk(true)
         const s = await canvasApi.status()
         if (cancelled) return
-        if (s.state === 'connected') {
+        if (deviceCode) setCard('device')
+        else if (s.state === 'connected') {
           useStore.getState().updatePrefs({ onboarded: true })
           setStatus(s)
           setCard('connected')
@@ -77,6 +83,8 @@ export function Connect() {
     return () => {
       cancelled = true
     }
+    // Runs once on open; a code from the link decides the first card.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const go = (next: Card, d: 1 | -1 = 1) => {
@@ -128,6 +136,34 @@ export function Connect() {
         setToken('')
         go('preview')
       } else fail(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  /** "Use on another device": sign in with a code, then load the account. */
+  const linkDevice = async () => {
+    if (deviceCode.length !== 6) return fail(t('The code has 6 numbers.'))
+    setBusy(true)
+    setError(null)
+    try {
+      const r = await accountApi.deviceLink(deviceCode)
+      go('importing')
+      // The account first (your progress, as is), then fresh classes from Canvas.
+      const pulled = await pullAccount({ adopt: true })
+      if (pulled === 'adopted') updatePrefs({ dataMode: 'canvas', canvasUser: r.userName, canvasHost: r.baseHost })
+      await syncCanvas({ silent: true, account: { userName: r.userName, baseHost: r.baseHost } })
+      updatePrefs({ onboarded: true })
+      const st = useStore.getState()
+      const xp = totalXp(st.xpEvents)
+      setWelcomeBack({ name: r.userName.split(' ')[0], level: levelFor(xp).level, xp })
+      go('welcome-back')
+      sfx.quest()
+      setTimeout(cannons, 250)
+    } catch (e) {
+      const err = e as CanvasError
+      go('device', -1)
+      fail(err.status === 0 ? t('Can’t reach the CampusFlow server from here.') : err.message)
     } finally {
       setBusy(false)
     }
@@ -189,6 +225,9 @@ export function Connect() {
                     <span className="flex flex-col items-center gap-2">
                       <button type="button" onClick={skip} className="text-sm font-black text-accent-text hover:underline">
                         {t('Just looking?')} {skipLabel} →
+                      </button>
+                      <button type="button" onClick={() => go('device')} className="text-sm font-black text-accent-text hover:underline">
+                        {t('Signed in on another device? Use a code')} →
                       </button>
                       <button type="button" onClick={() => navigate('/parent')} className="text-sm font-black text-[#0b8584] hover:underline">
                         {t('I’m a parent')} →
@@ -340,6 +379,26 @@ export function Connect() {
                 </Button>
                 <Button variant="ghost" icon={ArrowLeft} onClick={() => go('paste', -1)}>
                   {t('Back')}
+                </Button>
+              </div>
+            )}
+
+            {card === 'device' && (
+              <CardForm onSubmit={() => void linkDevice()} step={null} icon={<Smartphone className="size-9" strokeWidth={2.4} aria-hidden />} tone="accent" title={t('Sign in with a code')} text={t('On a device where you already use CampusFlow, open Me → Your account → Use on another device.')} error={error} onBack={() => go('welcome', -1)} submitLabel={busy ? t('Connecting…') : t('Sign in')} submitIcon={busy ? Loader2 : undefined} busy={busy}>
+                <Input aria-label={t('Code')} inputMode="numeric" autoComplete="one-time-code" value={deviceCode} onChange={(e) => setDeviceCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" autoFocus className="h-16 rounded-2xl border-[3px] text-center text-3xl font-black tracking-[0.3em]" />
+                <p className="text-center text-xs font-bold text-fg-3">{t('The code works once, for 10 minutes.')}</p>
+              </CardForm>
+            )}
+
+            {card === 'welcome-back' && welcomeBack && (
+              <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center" data-testid="welcome-back">
+                <motion.span initial={{ scale: 0, rotate: -40 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', delay: 0.1, stiffness: 300, damping: 10 }}>
+                  <CheckCircle2 className="size-16 fill-success-soft text-success-bright" aria-hidden />
+                </motion.span>
+                <h1 className="text-2xl font-black">{t('Welcome back, {name}!', { name: welcomeBack.name })}</h1>
+                <p className="font-semibold text-fg-2">{t('Your progress is on this device now: Level {level} · {xp} XP.', { level: welcomeBack.level, xp: welcomeBack.xp })}</p>
+                <Button variant="primary" size="lg" className="w-full" iconRight={ArrowRight} onClick={() => navigate('/')} autoFocus>
+                  {t('Let’s go')}
                 </Button>
               </div>
             )}

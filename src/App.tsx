@@ -19,7 +19,14 @@ function ToSettings() {
   return <Navigate to={`/me${hash || '#settings'}`} replace />
 }
 
+// "Use on another device" QR codes open /link?code=123456: the sign-in cards take it from there.
+function ToLink() {
+  const { search } = useLocation()
+  return <Navigate to={`/connect${search}`} replace />
+}
+
 const router = createRouter([
+  { path: '/link', element: <ToLink /> },
   // Parents: their own screens, outside the student app.
   { path: '/parent', lazy: page(() => import('@/parent/ParentApp'), 'ParentApp') },
   {

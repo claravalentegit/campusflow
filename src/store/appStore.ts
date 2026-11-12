@@ -57,6 +57,7 @@ export const DEFAULT_PREFS: Preferences = {
   familySharing: false,
   planDone: [],
   language: 'en',
+  account: { rev: 0, savedAt: null, dirty: false },
   toClaim: [],
   turnedInRecovered: false,
   familyGoals: [],
