@@ -1,21 +1,20 @@
 import { useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { addDays, format, isSameDay, isTomorrow } from 'date-fns'
-import { ChevronDown, Copy, ExternalLink, HelpCircle, Mail, Target, TrendingUp } from 'lucide-react'
+import { ChevronDown, Copy, ExternalLink, HelpCircle, Mail, SkipForward, Target, TrendingUp } from 'lucide-react'
 import { buildGuide, reopenEmail, type ClassGuide, type TurnIn } from '@/domain/guide'
 import type { Assignment } from '@/domain/types'
 import { useNow } from '@/hooks/useNow'
 import { useStore } from '@/store/appStore'
 import { toast } from '@/store/ui'
-import { completeAssignment } from '@/game/actions'
+import { completeAssignment, skipAssignment } from '@/game/actions'
 import { courseColor } from '@/components/course'
 import { CheckButton } from '@/components/game/GameUI'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input, Textarea } from '@/components/ui/Field'
 import { cn } from '@/components/ui/cn'
-import { fmtDate, tr, useT } from '@/i18n'
-import { useLang } from '@/i18n'
+import { fmtDate, tr, useLang, useT } from '@/i18n'
 import { msg } from '@/i18n/langs'
 
 export function useGuide(): ClassGuide[] {
@@ -123,6 +122,9 @@ export function ClassGuideSteps({ g }: { g: ClassGuide }) {
                   <ExternalLink className="size-4" aria-hidden />
                 </a>
               )}
+              <button type="button" onClick={() => skipAssignment(x.a)} aria-label={t('Skip {title}', { title: x.a.title })} title={t('Skip: remove from CampusFlow')} data-sfx="none" className="grid size-8 shrink-0 place-items-center rounded-lg text-fg-3 hover:bg-surface hover:text-fg">
+                <SkipForward className="size-4" strokeWidth={2.5} aria-hidden />
+              </button>
             </li>
           ))}
         </ul>

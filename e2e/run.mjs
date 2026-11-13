@@ -285,6 +285,8 @@ await test('Grade guide: clear steps per class, an email to reopen closed work, 
   await steps.getByText('Turn this in while you still can').waitFor()
   await steps.getByText(/Closes tomorrow/).waitFor()
   await steps.getByText(/Estimate: about/).waitFor()
+  // Skip works right in the guide too (and Undo brings it back).
+  await steps.getByRole('button', { name: 'Skip Problem Set 7: Lagrange Multipliers' }).waitFor()
   // Psychology: a closed assignment, with an email to ask for it to be reopened.
   const psych = guide.locator('li').filter({ has: page.getByRole('button', { name: /Cognitive Psychology/ }) }).first()
   await psych.getByRole('button', { name: /Cognitive Psychology/ }).click()

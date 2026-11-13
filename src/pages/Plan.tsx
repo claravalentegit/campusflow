@@ -1,13 +1,13 @@
 import { useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { addDays, format, isSameDay, isTomorrow } from 'date-fns'
-import { BookOpen, Check, Clock, ExternalLink, GraduationCap, Mail, PartyPopper, Send, Timer, Undo2 } from 'lucide-react'
+import { BookOpen, Check, Clock, ExternalLink, GraduationCap, Mail, PartyPopper, Send, SkipForward, Timer, Undo2 } from 'lucide-react'
 import { reopenEmail } from '@/domain/guide'
 import { buildPlan, helpEmail, type PlanCard } from '@/domain/plan'
 import { useNow } from '@/hooks/useNow'
 import { useStore } from '@/store/appStore'
 import { toast, useUi } from '@/store/ui'
-import { completeAssignment } from '@/game/actions'
+import { completeAssignment, skipAssignment } from '@/game/actions'
 import { cannons, celebrateCompletion, sfx } from '@/game/fx'
 import { courseColor } from '@/components/course'
 import { CheckButton, ProgressBar } from '@/components/game/GameUI'
@@ -202,6 +202,9 @@ function PlanCardView({ card, now, dir, onDone, onLater, canSkip }: { card: Plan
             )}
             <Button variant="secondary" icon={Timer} onClick={() => focus(card.t.a.title, card.t.a.id)}>
               {t('Focus 25 min')}
+            </Button>
+            <Button variant="ghost" icon={SkipForward} data-sfx="none" onClick={() => skipAssignment(card.t.a)}>
+              {t('Skip')}
             </Button>
           </div>
         </>
